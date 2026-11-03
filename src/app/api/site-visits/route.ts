@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     const property = await db.property.findUnique({
       where: { id: body.propertyId },
-      include: { seller: true },
+      include: { seller: true, builder: true },
     });
     if (!property || property.status !== "PUBLISHED") {
       return fail("This property is not accepting visit requests.", 404);
@@ -65,19 +65,25 @@ export async function POST(req: Request) {
       include: visitInclude,
     });
 
+    // owner = individual seller, or the builder behind the project
+    // when the unit has no individual seller attached
+    const ownerUserId = property.sellerId ?? property.builder?.userId ?? null;
+    const ownerLine = `${body.contactName} requested a visit to "${property.title}" on ${body.preferredDate} at ${body.preferredTime}.`;
     await notifyAdmins({
       title: "Site visit requested",
-      message: `${body.contactName} requested a visit to "${property.title}" on ${body.preferredDate} at ${body.preferredTime}.`,
+      message: ownerLine,
       type: "VISIT",
       link: "#/dashboard?tab=visits",
     });
-    await notify({
-      userId: property.sellerId,
-      title: "Site visit requested",
-      message: `${body.contactName} requested a visit to "${property.title}" on ${body.preferredDate} at ${body.preferredTime}.`,
-      type: "VISIT",
-      link: "#/dashboard?tab=visits",
-    });
+    if (ownerUserId) {
+      await notify({
+        userId: ownerUserId,
+        title: "Site visit requested",
+        message: ownerLine,
+        type: "VISIT",
+        link: "#/dashboard?tab=visits",
+      });
+    }
     if (buyerId) {
       await notify({
         userId: buyerId,
