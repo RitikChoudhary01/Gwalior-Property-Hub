@@ -559,7 +559,7 @@ export function PropertyForm({
             <div className="grid gap-1.5">
               <Label htmlFor="prop-city">City</Label>
               <Select
-                value={form.city || undefined}
+                value={form.city}
                 onValueChange={(city) => {
                   const entry = CITIES.find((c) => c.city === city);
                   setForm((f) => ({
@@ -591,7 +591,7 @@ export function PropertyForm({
             <div className="grid gap-1.5">
               <Label htmlFor="prop-locality">Locality</Label>
               <Select
-                value={form.locality || undefined}
+                value={form.locality}
                 onValueChange={(v) => setField("locality", v)}
                 disabled={!form.city}
               >
@@ -672,7 +672,7 @@ export function PropertyForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="prop-bhk">Bedrooms (BHK)</Label>
-              <Select value={form.bhk || undefined} onValueChange={(v) => setField("bhk", v)}>
+              <Select value={form.bhk} onValueChange={(v) => setField("bhk", v)}>
                 <SelectTrigger id="prop-bhk" className="w-full" aria-invalid={!!errors.bhk}>
                   <SelectValue placeholder="Select BHK" />
                 </SelectTrigger>
@@ -690,7 +690,7 @@ export function PropertyForm({
 
             <div className="grid gap-1.5">
               <Label htmlFor="prop-bathrooms">Bathrooms</Label>
-              <Select value={form.bathrooms || undefined} onValueChange={(v) => setField("bathrooms", v)}>
+              <Select value={form.bathrooms} onValueChange={(v) => setField("bathrooms", v)}>
                 <SelectTrigger id="prop-bathrooms" className="w-full">
                   <SelectValue placeholder="Select bathrooms" />
                 </SelectTrigger>
@@ -753,7 +753,7 @@ export function PropertyForm({
 
             <div className="grid gap-1.5">
               <Label htmlFor="prop-furnishing">Furnishing</Label>
-              <Select value={form.furnishing || undefined} onValueChange={(v) => setField("furnishing", v)}>
+              <Select value={form.furnishing} onValueChange={(v) => setField("furnishing", v)}>
                 <SelectTrigger id="prop-furnishing" className="w-full">
                   <SelectValue placeholder="Select furnishing" />
                 </SelectTrigger>
@@ -769,7 +769,7 @@ export function PropertyForm({
 
             <div className="grid gap-1.5">
               <Label htmlFor="prop-parking">Parking</Label>
-              <Select value={form.parking || undefined} onValueChange={(v) => setField("parking", v)}>
+              <Select value={form.parking} onValueChange={(v) => setField("parking", v)}>
                 <SelectTrigger id="prop-parking" className="w-full">
                   <SelectValue placeholder="Select parking" />
                 </SelectTrigger>
@@ -796,7 +796,7 @@ export function PropertyForm({
 
             <div className="grid gap-1.5">
               <Label htmlFor="prop-facing">Facing</Label>
-              <Select value={form.facing || undefined} onValueChange={(v) => setField("facing", v)}>
+              <Select value={form.facing} onValueChange={(v) => setField("facing", v)}>
                 <SelectTrigger id="prop-facing" className="w-full">
                   <SelectValue placeholder="Select facing" />
                 </SelectTrigger>
@@ -832,7 +832,7 @@ export function PropertyForm({
             {form.constructionStatus === "UNDER_CONSTRUCTION" && (
               <div className="grid gap-1.5">
                 <Label htmlFor="prop-possession">Expected possession</Label>
-                <Select value={form.possessionDate || undefined} onValueChange={(v) => setField("possessionDate", v)}>
+                <Select value={form.possessionDate} onValueChange={(v) => setField("possessionDate", v)}>
                   <SelectTrigger id="prop-possession" className="w-full">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
@@ -850,7 +850,7 @@ export function PropertyForm({
             {form.constructionStatus === "READY_TO_MOVE" && (
               <div className="grid gap-1.5">
                 <Label htmlFor="prop-age">Age of property</Label>
-                <Select value={form.ageOfProperty || undefined} onValueChange={(v) => setField("ageOfProperty", v)}>
+                <Select value={form.ageOfProperty} onValueChange={(v) => setField("ageOfProperty", v)}>
                   <SelectTrigger id="prop-age" className="w-full">
                     <SelectValue placeholder="Select age" />
                   </SelectTrigger>

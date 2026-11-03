@@ -1029,7 +1029,7 @@ function VisitsTab() {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="reschedule-time">Time slot</Label>
-              <Select value={resTime || undefined} onValueChange={(v) => setResTime(v)}>
+              <Select value={resTime} onValueChange={(v) => setResTime(v)}>
                 <SelectTrigger id="reschedule-time" className="w-full">
                   <SelectValue placeholder="Select a time" />
                 </SelectTrigger>
