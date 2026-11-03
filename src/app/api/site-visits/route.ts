@@ -1,0 +1,136 @@
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
+import { db } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
+import { ok, fail, handle, parseBody, rateLimit, clientIp } from "@/lib/api-helpers";
+import { visitInclude, toVisitDTO } from "@/lib/serializers";
+import { notify, notifyAdmins } from "@/lib/notifications";
+import { VISIT_TIME_SLOTS } from "@/lib/constants";
+
+export const dynamic = "force-dynamic";
+
+// ---------------- POST: request a visit ----------------
+
+const createSchema = z.object({
+  propertyId: z.string().min(1),
+  contactName: z.string().trim().min(2, "Please enter your name").max(80),
+  contactPhone: z.string().trim().regex(/^[+\d][\d\s-]{7,14}$/, "Please enter a valid phone number"),
+  preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Select a valid date"),
+  preferredTime: z.string().refine((t) => VISIT_TIME_SLOTS.includes(t), "Select a valid time slot"),
+  notes: z.string().trim().max(500).optional(),
+});
+
+export async function POST(req: Request) {
+  return handle(async () => {
+    const ip = clientIp(req);
+    if (!rateLimit(`visit:${ip}`, 10, 3600000)) {
+      return fail("Too many visit requests. Please try again later.", 429);
+    }
+
+    const body = await parseBody(req, createSchema);
+    const date = new Date(`${body.preferredDate}T00:00:00`);
+    if (isNaN(date.getTime()) || date < new Date(new Date().toDateString())) {
+      return fail("Preferred date must be today or later.", 422);
+    }
+
+    const property = await db.property.findUnique({
+      where: { id: body.propertyId },
+      include: { seller: true },
+    });
+    if (!property || property.status !== "PUBLISHED") {
+      return fail("This property is not accepting visit requests.", 404);
+    }
+
+    const user = await getSessionUser();
+    const buyerId = user?.role === "BUYER" ? user.id : null;
+
+    // link to an existing lead by phone, if any
+    const existingLead = await db.lead.findFirst({
+      where: { propertyId: property.id, phone: body.contactPhone },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const visit = await db.siteVisit.create({
+      data: {
+        propertyId: property.id,
+        buyerId,
+        leadId: existingLead?.id ?? null,
+        preferredDate: date,
+        preferredTime: body.preferredTime,
+        contactName: body.contactName,
+        contactPhone: body.contactPhone,
+        notes: body.notes ?? null,
+        status: "REQUESTED",
+      },
+      include: visitInclude,
+    });
+
+    await notifyAdmins({
+      title: "Site visit requested",
+      message: `${body.contactName} requested a visit to "${property.title}" on ${body.preferredDate} at ${body.preferredTime}.`,
+      type: "VISIT",
+      link: "#/dashboard?tab=visits",
+    });
+    await notify({
+      userId: property.sellerId,
+      title: "Site visit requested",
+      message: `${body.contactName} requested a visit to "${property.title}" on ${body.preferredDate} at ${body.preferredTime}.`,
+      type: "VISIT",
+      link: "#/dashboard?tab=visits",
+    });
+    if (buyerId) {
+      await notify({
+        userId: buyerId,
+        title: "Visit request received",
+        message: `We received your request to visit "${property.title}". You'll get a confirmation shortly.`,
+        type: "VISIT",
+        link: "#/dashboard?tab=visits",
+      });
+    }
+
+    return ok({ id: visit.id }, 201);
+  });
+}
+
+// ---------------- GET: role-scoped list ----------------
+
+export async function GET(req: Request) {
+  return handle(async () => {
+    const sp = new URL(req.url).searchParams;
+    const page = Math.max(1, Number(sp.get("page") ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Number(sp.get("pageSize") ?? 20)));
+    const status = sp.get("status");
+
+    const user = await getSessionUser();
+    if (!user) return fail("Sign in to view site visits.", 401);
+
+    const where: Prisma.SiteVisitWhereInput = {};
+    if (status) where.status = status;
+
+    if (user.role === "ADMIN") {
+      // all
+    } else if (user.role === "BUYER") {
+      where.buyerId = user.id;
+    } else if (user.role === "SELLER") {
+      where.property = { sellerId: user.id };
+    } else if (user.role === "BUILDER") {
+      where.property = { builderId: user.builderProfile?.id ?? "none" };
+    }
+
+    const [total, visits] = await Promise.all([
+      db.siteVisit.count({ where }),
+      db.siteVisit.findMany({
+        where,
+        include: visitInclude,
+        orderBy: [{ preferredDate: "asc" }, { createdAt: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return ok({
+      data: visits.map(toVisitDTO),
+      pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+    });
+  });
+}

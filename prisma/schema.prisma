@@ -1,0 +1,484 @@
+// Vasati — Indian Real Estate Marketplace
+// Prisma schema (PostgreSQL-portable design, running on SQLite in this environment)
+// Roles: BUYER | SELLER | BUILDER | ADMIN  (string constants — see src/lib/constants.ts)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// IDENTITY & ACCESS
+// ============================================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         String // BUYER | SELLER | BUILDER | ADMIN
+  avatarUrl    String?
+  city         String?
+  isVerified   Boolean   @default(false) // seller identity verification
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  builderProfile     Builder?
+  properties         Property[]
+  favourites         Favourite[]
+  leads              Lead[]            @relation("BuyerLeads")
+  assignedLeads      Lead[]            @relation("AssignedLeads")
+  leadActivities    LeadActivity[]
+  siteVisits        SiteVisit[]
+  sellerAgreements  SellerAgreement[]
+  transactions      Transaction[]     @relation("BuyerTransactions")
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  sessions          Session[]
+
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(uuid()) // opaque token stored in httpOnly cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Builder {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String
+  description String?
+  logoUrl     String?
+  website     String?
+  reraNumber  String? // displayed only when provided by the builder
+  address     String?
+  city        String?
+  state       String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projects     Project[]
+  properties   Property[]
+  agreements   BuilderAgreement[]
+  transactions Transaction[]
+}
+
+// ============================================================
+// PROJECTS (builder developments containing multiple units)
+// ============================================================
+
+model Project {
+  id             String   @id @default(uuid())
+  builderId      String
+  builder        Builder  @relation(fields: [builderId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String   @unique
+  description    String?
+  city           String
+  state          String
+  locality       String
+  propertyType   String   @default("Apartment")
+  configuration  String? // e.g. "2, 3 & 4 BHK"
+  priceMin       Int?
+  priceMax       Int?
+  totalUnits     Int      @default(0)
+  availableUnits Int      @default(0)
+  reraNumber     String?
+  construction   String   @default("UNDER_CONSTRUCTION") // UNDER_CONSTRUCTION | READY_TO_MOVE | NEW_LAUNCH
+  possessionDate String? // e.g. "Dec 2026"
+  amenities      String? // comma separated display string
+  status         String   @default("PENDING") // DRAFT | PENDING | PUBLISHED | REJECTED | INACTIVE
+  rejectionReason String?
+  featured       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  units      Property[]
+  images     ProjectImage[]
+
+  @@index([city, status])
+  @@index([builderId])
+}
+
+model ProjectImage {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  sortOrder Int     @default(0)
+}
+
+// ============================================================
+// PROPERTIES (individual listings + project units)
+// ============================================================
+
+model Property {
+  id                 String   @id @default(uuid())
+  title              String
+  slug               String   @unique
+  description        String
+  type               String // Apartment | Flat | Independent House | Villa | Plot
+  price              Int // in INR
+  negotiable         Boolean  @default(false)
+  city               String
+  state              String
+  locality           String
+  address            String
+  latitude           Float?
+  longitude          Float?
+  bhk                Int?
+  bathrooms          Int?
+  carpetArea         Int? // sq ft
+  builtUpArea        Int? // sq ft
+  plotArea           Int? // sq ft
+  furnishing         String? // Unfurnished | Semi-Furnished | Fully-Furnished
+  parking            Int      @default(0)
+  floorInfo          String? // e.g. "5 of 14"
+  facing             String?
+  constructionStatus String   @default("READY_TO_MOVE") // READY_TO_MOVE | UNDER_CONSTRUCTION | NEW
+  possessionDate     String?
+  ageOfProperty      String? // e.g. "0-1 years"
+  reraNumber         String?
+  sellerId           String
+  seller             User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  builderId          String?
+  builder            Builder? @relation(fields: [builderId], references: [id])
+  projectId          String?
+  project            Project? @relation(fields: [projectId], references: [id])
+  status             String   @default("PENDING") // DRAFT | PENDING | PUBLISHED | REJECTED | INACTIVE | SOLD
+  rejectionReason    String?
+  availability       String   @default("AVAILABLE") // AVAILABLE | RESERVED | SOLD
+  featured           Boolean  @default(false)
+  views              Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  images          PropertyImage[]
+  amenities       PropertyAmenity[]
+  documents       PropertyDocument[]
+  favourites      Favourite[]
+  leads           Lead[]
+  siteVisits      SiteVisit[]
+  transactions    Transaction[]
+  featuredRecords FeaturedListing[]
+
+  @@index([city, status, type])
+  @@index([sellerId])
+  @@index([builderId])
+  @@index([projectId])
+  @@index([status, createdAt])
+  @@index([price])
+}
+
+model PropertyImage {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url        String
+  isMain     Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+model PropertyAmenity {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name       String
+
+  @@unique([propertyId, name])
+}
+
+model PropertyDocument {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name       String
+  url        String
+  docType    String   @default("OWNERSHIP") // OWNERSHIP | AUTHORIZATION | OTHER
+  status     String   @default("PENDING") // PENDING | VERIFIED | REJECTED
+  uploadedAt DateTime @default(now())
+}
+
+model Favourite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+}
+
+// ============================================================
+// LEAD CRM
+// ============================================================
+
+model Lead {
+  id              String    @id @default(uuid())
+  reference       String    @unique // e.g. VAS-2025-000421
+  propertyId      String
+  property        Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  buyerId         String?
+  buyer           User?     @relation("BuyerLeads", fields: [buyerId], references: [id])
+  name            String
+  phone           String
+  email           String?
+  budget          Int?
+  message         String?
+  source          String    @default("Website")
+  status          String    @default("NEW") // NEW | CONTACTED | QUALIFIED | SITE_VISIT_SCHEDULED | SITE_VISIT_COMPLETED | NEGOTIATION | BOOKING | CONVERTED | LOST
+  assignedToId    String?
+  assignedTo      User?     @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  followUpDate    DateTime?
+  lastContactedAt DateTime?
+  consent         Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  activities   LeadActivity[]
+  visits       SiteVisit[]
+  transaction  Transaction?
+
+  @@unique([propertyId, phone, createdAt]) // soft duplicate guard; app-level window check too
+  @@index([status])
+  @@index([assignedToId])
+  @@index([propertyId])
+  @@index([createdAt])
+}
+
+model LeadActivity {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  type      String // NOTE | STATUS_CHANGE | ASSIGNMENT | SYSTEM | CALL | EMAIL | WHATSAPP
+  note      String
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
+
+// ============================================================
+// SITE VISITS
+// ============================================================
+
+model SiteVisit {
+  id             String   @id @default(uuid())
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  buyerId        String?
+  buyer          User?    @relation(fields: [buyerId], references: [id])
+  leadId         String?
+  lead           Lead?    @relation(fields: [leadId], references: [id])
+  preferredDate  DateTime
+  preferredTime  String // e.g. "11:00 AM"
+  contactName    String
+  contactPhone   String
+  status         String   @default("REQUESTED") // REQUESTED | CONFIRMED | RESCHEDULED | COMPLETED | CANCELLED
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([buyerId])
+  @@index([status])
+}
+
+// ============================================================
+// AGREEMENTS
+// ============================================================
+
+model SellerAgreement {
+  id             String    @id @default(uuid())
+  reference      String    @unique // e.g. VAS-AGR-SLR-0001
+  sellerId       String
+  seller         User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  commissionType String // PERCENTAGE | FIXED
+  commissionRate Float? // percentage, e.g. 1.0
+  fixedFee       Int? // flat INR
+  startDate      DateTime
+  endDate        DateTime?
+  status         String    @default("ACTIVE") // DRAFT | ACTIVE | TERMINATED
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  commissions Commission[]
+
+  @@index([sellerId, status])
+}
+
+model BuilderAgreement {
+  id             String    @id @default(uuid())
+  reference      String    @unique
+  builderId      String
+  builder        Builder   @relation(fields: [builderId], references: [id], onDelete: Cascade)
+  commissionType String // PERCENTAGE | FIXED
+  commissionRate Float?
+  fixedFee       Int?
+  startDate      DateTime
+  endDate        DateTime?
+  status         String    @default("ACTIVE")
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  commissions Commission[]
+
+  @@index([builderId, status])
+}
+
+// ============================================================
+// TRANSACTIONS & COMMISSIONS  (admin-only writes)
+// ============================================================
+
+model Transaction {
+  id            String    @id @default(uuid())
+  reference     String    @unique // e.g. VAS-TXN-2025-0007
+  leadId        String?   @unique
+  lead          Lead?     @relation(fields: [leadId], references: [id])
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id])
+  buyerId       String?
+  buyer         User?     @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  sellerId      String?
+  builderId     String?
+  builder       Builder?  @relation(fields: [builderId], references: [id])
+  saleValue     Int
+  bookingDate   DateTime
+  agreementRef  String? // external sale agreement reference
+  status        String    @default("CONFIRMED") // PENDING | CONFIRMED | COMPLETED | CANCELLED
+  completionDate DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  commission Commission?
+
+  @@index([propertyId])
+  @@index([status])
+}
+
+model Commission {
+  id                 String   @id @default(uuid())
+  transactionId      String   @unique
+  transaction        Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  sellerAgreementId  String?
+  sellerAgreement    SellerAgreement? @relation(fields: [sellerAgreementId], references: [id])
+  builderAgreementId String?
+  builderAgreement   BuilderAgreement? @relation(fields: [builderAgreementId], references: [id])
+  commissionType     String // PERCENTAGE | FIXED
+  rate               Float?
+  amount             Int // total commission payable to platform
+  dueDate            DateTime?
+  paidAmount         Int      @default(0)
+  status             String   @default("PENDING") // PENDING | PARTIAL | PAID
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  payments CommissionPayment[]
+
+  @@index([status])
+}
+
+model CommissionPayment {
+  id           String   @id @default(uuid())
+  commissionId String
+  commission   Commission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  amount       Int
+  paidOn       DateTime
+  method       String   @default("BANK_TRANSFER") // BANK_TRANSFER | UPI | CHEQUE | CASH
+  reference    String?
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([commissionId])
+}
+
+// ============================================================
+// MARKETING
+// ============================================================
+
+model FeaturedListing {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  package    String   @default("FEATURED") // FEATURED | PREMIUM
+  startDate  DateTime
+  endDate    DateTime
+  amount     Int?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+// ============================================================
+// NOTIFICATIONS, AUDIT & PLATFORM
+// ============================================================
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String // ENQUIRY | VISIT | LISTING | TRANSACTION | COMMISSION | SYSTEM
+  link      String? // in-app hash route, e.g. #/dashboard?tab=enquiries
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // e.g. LISTING_APPROVED, TRANSACTION_CREATED
+  entity    String // PROPERTY | USER | LEAD | TRANSACTION | COMMISSION | AGREEMENT
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  status    String   @default("NEW") // NEW | IN_PROGRESS | RESOLVED
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
+}

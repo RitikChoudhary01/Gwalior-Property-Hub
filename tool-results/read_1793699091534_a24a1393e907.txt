@@ -1,0 +1,1393 @@
+     1→/**
+     2→ * Vasati — database seed
+     3→ * Run with: bun run db:seed
+     4→ *
+     5→ * Seeds demo accounts, properties, projects, leads, visits,
+     6→ * agreements, a transaction + commission and notifications.
+     7→ * All data flows through the same models the application uses.
+     8→ */
+     9→import { PrismaClient } from "@prisma/client";
+    10→import { randomBytes, scryptSync } from "crypto";
+    11→import { db } from "../src/lib/db";
+    12→
+    13→function hashPassword(password: string): string {
+    14→  const salt = randomBytes(16).toString("hex");
+    15→  const hash = scryptSync(password, salt, 64).toString("hex");
+    16→  return `s1:${salt}:${hash}`;
+    17→}
+    18→
+    19→const img = (name: string) => `/images/properties/${name}`;
+    20→
+    21→const days = (n: number) => new Date(Date.now() + n * 86400000);
+    22→
+    23→async function main() {
+    24→  console.log("Clearing existing data...");
+    25→  await db.$transaction([
+    26→    db.commissionPayment.deleteMany(),
+    27→    db.commission.deleteMany(),
+    28→    db.transaction.deleteMany(),
+    29→    db.siteVisit.deleteMany(),
+    30→    db.leadActivity.deleteMany(),
+    31→    db.lead.deleteMany(),
+    32→    db.favourite.deleteMany(),
+    33→    db.propertyDocument.deleteMany(),
+    34→    db.propertyAmenity.deleteMany(),
+    35→    db.propertyImage.deleteMany(),
+    36→    db.featuredListing.deleteMany(),
+    37→    db.property.deleteMany(),
+    38→    db.projectImage.deleteMany(),
+    39→    db.project.deleteMany(),
+    40→    db.builderAgreement.deleteMany(),
+    41→    db.sellerAgreement.deleteMany(),
+    42→    db.notification.deleteMany(),
+    43→    db.auditLog.deleteMany(),
+    44→    db.contactMessage.deleteMany(),
+    45→    db.setting.deleteMany(),
+    46→    db.session.deleteMany(),
+    47→    db.builder.deleteMany(),
+    48→    db.user.deleteMany(),
+    49→  ]);
+    50→
+    51→  console.log("Creating users...");
+    52→  const admin = await db.user.create({
+    53→    data: {
+    54→      email: "admin@vasati.in",
+    55→      passwordHash: hashPassword("Admin@123"),
+    56→      name: "Arjun Nair",
+    57→      phone: "+91 98200 11223",
+    58→      role: "ADMIN",
+    59→      city: "Bengaluru",
+    60→      isVerified: true,
+    61→    },
+    62→  });
+    63→
+    64→  const priya = await db.user.create({
+    65→    data: {
+    66→      email: "buyer@vasati.in",
+    67→      passwordHash: hashPassword("Buyer@123"),
+    68→      name: "Priya Sharma",
+    69→      phone: "+91 98330 44556",
+    70→      role: "BUYER",
+    71→      city: "Mumbai",
+    72→    },
+    73→  });
+    74→
+    75→  const rohan = await db.user.create({
+    76→    data: {
+    77→      email: "rohan@example.in",
+    78→      passwordHash: hashPassword("Buyer@123"),
+    79→      name: "Rohan Iyer",
+    80→      phone: "+91 99001 77889",
+    81→      role: "BUYER",
+    82→      city: "Bengaluru",
+    83→    },
+    84→  });
+    85→
+    86→  const sunita = await db.user.create({
+    87→    data: {
+    88→      email: "seller@vasati.in",
+    89→      passwordHash: hashPassword("Seller@123"),
+    90→      name: "Sunita Rao",
+    91→      phone: "+91 98480 22334",
+    92→      role: "SELLER",
+    93→      city: "Hyderabad",
+    94→      isVerified: true,
+    95→    },
+    96→  });
+    97→
+    98→  const vikram = await db.user.create({
+    99→    data: {
+   100→      email: "vikram@example.in",
+   101→      passwordHash: hashPassword("Seller@123"),
+   102→      name: "Vikram Malhotra",
+   103→      phone: "+91 98110 33445",
+   104→      role: "SELLER",
+   105→      city: "Gurugram",
+   106→      isVerified: true,
+   107→    },
+   108→  });
+   109→
+   110→  const anil = await db.user.create({
+   111→    data: {
+   112→      email: "anil@example.in",
+   113→      passwordHash: hashPassword("Seller@123"),
+   114→      name: "Anil Deshpande",
+   115→      phone: "+91 98220 55667",
+   116→      role: "SELLER",
+   117→      city: "Pune",
+   118→    },
+   119→  });
+   120→
+   121→  console.log("Creating builders...");
+   122→  const kabir = await db.user.create({
+   123→    data: {
+   124→      email: "builder@vasati.in",
+   125→      passwordHash: hashPassword("Builder@123"),
+   126→      name: "Kabir Anand",
+   127→      phone: "+91 99860 12345",
+   128→      role: "BUILDER",
+   129→      city: "Bengaluru",
+   130→      isVerified: true,
+   131→    },
+   132→  });
+   133→
+   134→  const meridian = await db.builder.create({
+   135→    data: {
+   136→      userId: kabir.id,
+   137→      companyName: "Meridian Developers",
+   138→      description:
+   139→        "Meridian Developers has delivered over 4.5 million sq.ft. of premium residential space across Bengaluru and Pune, with a focus on design-led, sustainability-certified communities.",
+   140→      website: "https://meridiandevelopers.example.in",
+   141→      city: "Bengaluru",
+   142→      state: "Karnataka",
+   143→      address: "Meridian House, Whitefield Main Road, Bengaluru 560066",
+   144→      isVerified: true,
+   145→    },
+   146→  });
+   147→
+   148→  const meera = await db.user.create({
+   149→    data: {
+   150→      email: "meera@sthirya.in",
+   151→      passwordHash: hashPassword("Builder@123"),
+   152→      name: "Meera Krishnan",
+   153→      phone: "+91 99480 66778",
+   154→      role: "BUILDER",
+   155→      city: "Hyderabad",
+   156→      isVerified: true,
+   157→    },
+   158→  });
+   159→
+   160→  const sthirya = await db.builder.create({
+   161→    data: {
+   162→      userId: meera.id,
+   163→      companyName: "Sthirya Homes",
+   164→      description:
+   165→        "Sthirya Homes builds boutique residential communities in Hyderabad and the NCR, known for timely delivery and transparent, customer-first processes.",
+   166→      website: "https://sthiryahomes.example.in",
+   167→      city: "Hyderabad",
+   168→      state: "Telangana",
+   169→      address: "Plot 42, Financial District Road, Gachibowli, Hyderabad 500032",
+   170→      isVerified: true,
+   171→    },
+   172→  });
+   173→
+   174→  console.log("Creating projects...");
+   175→  const skyline = await db.project.create({
+   176→    data: {
+   177→      builderId: meridian.id,
+   178→      name: "Meridian Skyline",
+   179→      slug: "meridian-skyline-whitefield-bengaluru",
+   180→      description:
+   181→        "Meridian Skyline is a 2-tower premium residential development in the heart of Whitefield, offering 3 and 4 BHK residences with sky decks, a 30,000 sq.ft. clubhouse and 78% open spaces. Walking distance to ITPL and upcoming metro connectivity.",
+   182→      city: "Bengaluru",
+   183→      state: "Karnataka",
+   184→      locality: "Whitefield",
+   185→      propertyType: "Apartment",
+   186→      configuration: "3 & 4 BHK Apartments",
+   187→      priceMin: 14000000,
+   188→      priceMax: 23000000,
+   189→      totalUnits: 120,
+   190→      availableUnits: 38,
+   191→      construction: "UNDER_CONSTRUCTION",
+   192→      possessionDate: "Dec 2026",
+   193→      amenities: "Clubhouse, Swimming Pool, Gym, Jogging Track, Children's Play Area, 24x7 Security, Power Backup",
+   194→      status: "PUBLISHED",
+   195→      featured: true,
+   196→      images: {
+   197→        create: [
+   198→          { url: img("facade.png"), caption: "Tower facade", sortOrder: 0 },
+   199→          { url: img("township.png"), caption: "Aerial view", sortOrder: 1 },
+   200→          { url: img("pool.png"), caption: "Pool deck", sortOrder: 2 },
+   201→          { url: img("clubhouse.png"), caption: "Clubhouse lounge", sortOrder: 3 },
+   202→        ],
+   203→      },
+   204→    },
+   205→  });
+   206→
+   207→  const meridianGreens = await db.project.create({
+   208→    data: {
+   209→      builderId: meridian.id,
+   210→      name: "Meridian Greens",
+   211→      slug: "meridian-greens-hinjawadi-pune",
+   212→      description:
+   213→        "Thoughtfully designed 2 and 3 BHK homes in Hinjawadi Phase 2, surrounded by 3 acres of central greens. Smart-home ready apartments with VRV air conditioning and EV charging bays.",
+   214→      city: "Pune",
+   215→      state: "Maharashtra",
+   216→      locality: "Hinjawadi Phase 2",
+   217→      propertyType: "Apartment",
+   218→      configuration: "2 & 3 BHK Apartments",
+   219→      priceMin: 7500000,
+   220→      priceMax: 13500000,
+   221→      totalUnits: 240,
+   222→      availableUnits: 92,
+   223→      construction: "UNDER_CONSTRUCTION",
+   224→      possessionDate: "Jun 2027",
+   225→      amenities: "Clubhouse, Swimming Pool, Gym, Sports Facility, Landscaped Gardens, 24x7 Security",
+   226→      status: "PUBLISHED",
+   227→      images: {
+   228→        create: [
+   229→          { url: img("ap-building.png"), caption: "Community view", sortOrder: 0 },
+   230→          { url: img("township.png"), caption: "Masterplan", sortOrder: 1 },
+   231→          { url: img("pool.png"), caption: "Pool", sortOrder: 2 },
+   232→        ],
+   233→      },
+   234→    },
+   235→  });
+   236→
+   237→  const verdant = await db.project.create({
+   238→    data: {
+   239→      builderId: sthirya.id,
+   240→      name: "Sthirya Verdant Court",
+   241→      slug: "sthirya-verdant-court-gachibowli-hyderabad",
+   242→      description:
+   243→        "Ready-to-move 3 and 4 BHK residences in Gachibowli with double-height living rooms, private decks and a rooftop clubhouse overlooking the Financial District.",
+   244→      city: "Hyderabad",
+   245→      state: "Telangana",
+   246→      locality: "Gachibowli",
+   247→      propertyType: "Apartment",
+   248→      configuration: "3 & 4 BHK Apartments",
+   249→      priceMin: 17000000,
+   250→      priceMax: 29000000,
+   251→      totalUnits: 88,
+   252→      availableUnits: 21,
+   253→      construction: "READY_TO_MOVE",
+   254→      possessionDate: "Ready to Move",
+   255→      amenities: "Clubhouse, Swimming Pool, Gym, Sports Facility, Jogging Track, 24x7 Security, Power Backup",
+   256→      status: "PUBLISHED",
+   257→      featured: true,
+   258→      images: {
+   259→        create: [
+   260→          { url: img("facade.png"), caption: "Entrance lobby", sortOrder: 0 },
+   261→          { url: img("ap-living.png"), caption: "Show residence", sortOrder: 1 },
+   262→          { url: img("clubhouse.png"), caption: "Rooftop clubhouse", sortOrder: 2 },
+   263→        ],
+   264→      },
+   265→    },
+   266→  });
+   267→
+   268→  const nest = await db.project.create({
+   269→    data: {
+   270→      builderId: sthirya.id,
+   271→      name: "Sthirya The Nest",
+   272→      slug: "sthirya-the-nest-sector-150-noida",
+   273→      description:
+   274→        "The Nest brings low-density 2 and 3 BHK homes to Sector 150, Noida's greenest sector, with a 5-acre central park, cycling loop and full-grown tree transplantations.",
+   275→      city: "Noida",
+   276→      state: "Uttar Pradesh",
+   277→      locality: "Sector 150",
+   278→      propertyType: "Apartment",
+   279→      configuration: "2 & 3 BHK Apartments",
+   280→      priceMin: 8500000,
+   281→      priceMax: 14000000,
+   282→      totalUnits: 160,
+   283→      availableUnits: 44,
+   284→      construction: "UNDER_CONSTRUCTION",
+   285→      possessionDate: "Mar 2027",
+   286→      amenities: "Clubhouse, Swimming Pool, Gym, Children's Play Area, Landscaped Gardens, 24x7 Security",
+   287→      status: "PENDING",
+   288→      images: {
+   289→        create: [
+   290→          { url: img("ap-building.png"), caption: "The Nest towers", sortOrder: 0 },
+   291→          { url: img("pool.png"), caption: "Pool", sortOrder: 1 },
+   292→        ],
+   293→      },
+   294→    },
+   295→  });
+   296→
+   297→  console.log("Creating properties...");
+   298→
+   299→  type PropSeed = {
+   300→    title: string;
+   301→    slug: string;
+   302→    description: string;
+   303→    type: string;
+   304→    price: number;
+   305→    city: string;
+   306→    state: string;
+   307→    locality: string;
+   308→    address: string;
+   309→    lat: number;
+   310→    lng: number;
+   311→    bhk?: number;
+   312→    bathrooms?: number;
+   313→    carpetArea?: number;
+   314→    builtUpArea?: number;
+   315→    plotArea?: number;
+   316→    furnishing?: string;
+   317→    parking?: number;
+   318→    floorInfo?: string;
+   319→    facing?: string;
+   320→    constructionStatus?: string;
+   321→    possessionDate?: string;
+   322→    ageOfProperty?: string;
+   323→    sellerId: string;
+   324→    builderId?: string;
+   325→    projectId?: string;
+   326→    status: string;
+   327→    availability?: string;
+   328→    featured?: boolean;
+   329→    views: number;
+   330→    images: string[];
+   331→    amenities: string[];
+   332→    createdDaysAgo: number;
+   333→  };
+   334→
+   335→  const props: PropSeed[] = [
+   336→    {
+   337→      title: "Sunlit 3 BHK Apartment in Powai with Lake Views",
+   338→      slug: "sunlit-3bhk-apartment-powai-mumbai",
+   339→      description:
+   340→        "A beautifully maintained 3 BHK apartment in one of Powai's most sought-after gated communities, offering uninterrupted views of Powai Lake. The home features a semi-modular kitchen, large balconies on two sides and premium flooring throughout. The complex includes a clubhouse, swimming pool and 24x7 security, minutes from Hiranandani Gardens and easy access to theJVLR.",
+   341→      type: "Apartment",
+   342→      price: 32000000,
+   343→      city: "Mumbai",
+   344→      state: "Maharashtra",
+   345→      locality: "Powai",
+   346→      address: "Lake Homes Complex, Powai Valley Road, Powai, Mumbai 400076",
+   347→      lat: 19.12,
+   348→      lng: 72.91,
+   349→      bhk: 3,
+   350→      bathrooms: 3,
+   351→      carpetArea: 1180,
+   352→      builtUpArea: 1450,
+   353→      furnishing: "Semi-Furnished",
+   354→      parking: 1,
+   355→      floorInfo: "7 of 14",
+   356→      facing: "East",
+   357→      constructionStatus: "READY_TO_MOVE",
+   358→      ageOfProperty: "5-7 years",
+   359→      sellerId: sunita.id,
+   360→      status: "PUBLISHED",
+   361→      featured: true,
+   362→      views: 214,
+   363→      images: [img("ap-living.png"), img("ap-balcony.png"), img("ap-bedroom.png"), img("ap-kitchen.png"), img("ap-bathroom.png")],
+   364→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "24x7 Security", "CCTV Surveillance", "Intercom", "Balcony", "Car Parking"],
+   365→      createdDaysAgo: 21,
+   366→    },
+   367→    {
+   368→      title: "Landmark 4 BHK Residence in Bandra West",
+   369→      slug: "landmark-4bhk-residence-bandra-west-mumbai",
+   370→      description:
+   371→        "An iconic 4 BHK residence in a boutique building off Carter Road, Bandra West. Fully renovated with Italian marble flooring, a chef's kitchen and a wrap-around balcony with sea glimpses. Walk to Carter Road promenade, restaurants and premier schools.",
+   372→      type: "Apartment",
+   373→      price: 78000000,
+   374→      city: "Mumbai",
+   375→      state: "Maharashtra",
+   376→      locality: "Bandra West",
+   377→      address: "Sea Breeze Apartments, 12th Road, Khar West, Mumbai 400050",
+   378→      lat: 19.06,
+   379→      lng: 72.83,
+   380→      bhk: 4,
+   381→      bathrooms: 4,
+   382→      carpetArea: 2150,
+   383→      builtUpArea: 2500,
+   384→      furnishing: "Fully-Furnished",
+   385→      parking: 2,
+   386→      floorInfo: "9 of 12",
+   387→      facing: "West",
+   388→      constructionStatus: "READY_TO_MOVE",
+   389→      ageOfProperty: "8-10 years",
+   390→      sellerId: vikram.id,
+   391→      status: "PUBLISHED",
+   392→      views: 342,
+   393→      images: [img("ap-living.png"), img("ap-kitchen.png"), img("ap-bedroom.png"), img("ap-balcony.png")],
+   394→      amenities: ["Power Backup", "Lift", "24x7 Security", "CCTV Surveillance", "Modular Kitchen", "Servant Room", "Balcony", "Car Parking"],
+   395→      createdDaysAgo: 34,
+   396→    },
+   397→    {
+   398→      title: "Meridian Skyline — 3 BHK Sky Deck Residence, Whitefield",
+   399→      slug: "meridian-skyline-3bhk-whitefield-bengaluru",
+   400→      description:
+   401→        "A 3 BHK sky deck residence at Meridian Skyline, Whitefield. Corner unit with 10x14 ft sky deck, VRV air conditioning, smart-home provisioning and full-length windows. Includes clubhouse membership and two covered parkings. Scheduled for completion by December 2026.",
+   402→      type: "Apartment",
+   403→      price: 15200000,
+   404→      city: "Bengaluru",
+   405→      state: "Karnataka",
+   406→      locality: "Whitefield",
+   407→      address: "Meridian Skyline, Whitefield Main Road, Bengaluru 560066",
+   408→      lat: 12.97,
+   409→      lng: 77.73,
+   410→      bhk: 3,
+   411→      bathrooms: 3,
+   412→      carpetArea: 1345,
+   413→      builtUpArea: 1620,
+   414→      furnishing: "Unfurnished",
+   415→      parking: 2,
+   416→      floorInfo: "11 of 21",
+   417→      facing: "North-East",
+   418→      constructionStatus: "UNDER_CONSTRUCTION",
+   419→      possessionDate: "Dec 2026",
+   420→      sellerId: kabir.id,
+   421→      builderId: meridian.id,
+   422→      projectId: skyline.id,
+   423→      status: "PUBLISHED",
+   424→      views: 189,
+   425→      images: [img("facade.png"), img("ap-living.png"), img("pool.png"), img("clubhouse.png")],
+   426→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "Jogging Track", "Children's Play Area", "24x7 Security", "Balcony", "Car Parking"],
+   427→      createdDaysAgo: 16,
+   428→    },
+   429→    {
+   430→      title: "Meridian Skyline — 4 BHK Signature Residence, Whitefield",
+   431→      slug: "meridian-skyline-4bhk-whitefield-bengaluru",
+   432→      description:
+   433→        "The signature 4 BHK at Meridian Skyline with a private foyer, staff quarters and a 200 sq.ft. sky deck overlooking the central greens. Premium specifications include engineered wood flooring, German fittings and home automation.",
+   434→      type: "Apartment",
+   435→      price: 21000000,
+   436→      city: "Bengaluru",
+   437→      state: "Karnataka",
+   438→      locality: "Whitefield",
+   439→      address: "Meridian Skyline, Whitefield Main Road, Bengaluru 560066",
+   440→      lat: 12.97,
+   441→      lng: 77.73,
+   442→      bhk: 4,
+   443→      bathrooms: 4,
+   444→      carpetArea: 1780,
+   445→      builtUpArea: 2150,
+   446→      furnishing: "Unfurnished",
+   447→      parking: 2,
+   448→      floorInfo: "18 of 21",
+   449→      facing: "East",
+   450→      constructionStatus: "UNDER_CONSTRUCTION",
+   451→      possessionDate: "Dec 2026",
+   452→      sellerId: kabir.id,
+   453→      builderId: meridian.id,
+   454→      projectId: skyline.id,
+   455→      status: "PUBLISHED",
+   456→      views: 156,
+   457→      images: [img("facade.png"), img("ap-living.png"), img("ap-kitchen.png"), img("township.png")],
+   458→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "24x7 Security", "Servant Room", "Balcony", "Car Parking", "Landscaped Gardens"],
+   459→      createdDaysAgo: 16,
+   460→    },
+   461→    {
+   462→      title: "Smart 2 BHK Apartment in the Heart of Koramangala",
+   463→      slug: "smart-2bhk-apartment-koramangala-bengaluru",
+   464→      description:
+   465→        "A compact, efficiently planned 2 BHK in Koramangala 5th Block, steps from 80 Feet Road's cafes and offices. Recently painted, with wardrobes and modular kitchen included. Ideal first home or rental investment.",
+   466→      type: "Apartment",
+   467→      price: 9500000,
+   468→      city: "Bengaluru",
+   469→      state: "Karnataka",
+   470→      locality: "Koramangala",
+   471→      address: "Ashirvad Enclave, 5th Block, Koramangala, Bengaluru 560095",
+   472→      lat: 12.94,
+   473→      lng: 77.62,
+   474→      bhk: 2,
+   475→      bathrooms: 2,
+   476→      carpetArea: 940,
+   477→      builtUpArea: 1080,
+   478→      furnishing: "Semi-Furnished",
+   479→      parking: 1,
+   480→      floorInfo: "3 of 5",
+   481→      facing: "North",
+   482→      constructionStatus: "READY_TO_MOVE",
+   483→      ageOfProperty: "3-5 years",
+   484→      sellerId: sunita.id,
+   485→      status: "PUBLISHED",
+   486→      views: 98,
+   487→      images: [img("ap-living.png"), img("ap-bedroom.png"), img("ap-kitchen.png")],
+   488→      amenities: ["Lift", "Power Backup", "24x7 Security", "Modular Kitchen", "Car Parking"],
+   489→      createdDaysAgo: 9,
+   490→    },
+   491→    {
+   492→      title: "Vastu-Compliant Corner Plot on Sarjapur Road",
+   493→      slug: "corner-plot-sarjapur-road-bengaluru",
+   494→      description:
+   495→        "A 2,400 sq.ft. corner plot (60x40) in a gated layout off Sarjapur Road, with clear titles, compound wall on three sides and underground electricity. 15 minutes from Wipro Corporate Office. Approved layout with 30 ft. internal roads and street lighting.",
+   496→      type: "Plot",
+   497→      price: 11000000,
+   498→      city: "Bengaluru",
+   499→      state: "Karnataka",
+   500→      locality: "Sarjapur Road",
+   501→      address: "Green Valley Layout, Sarjapur Road, Bengaluru 562125",
+   502→      lat: 12.91,
+   503→      lng: 77.68,
+   504→      plotArea: 2400,
+   505→      parking: 0,
+   506→      constructionStatus: "READY_TO_MOVE",
+   507→      sellerId: anil.id,
+   508→      status: "PUBLISHED",
+   509→      views: 67,
+   510→      images: [img("plot.png"), img("house-ext.png")],
+   511→      amenities: ["Gated Community", "24x7 Security", "Landscaped Gardens"],
+   512→      createdDaysAgo: 12,
+   513→    },
+   514→    {
+   515→      title: "Elegant 3 BHK in Koregaon Park with Rooftop Deck",
+   516→      slug: "elegant-3bhk-koregaon-park-pune",
+   517→      description:
+   518→        "A serene 3 BHK in a low-rise boutique building in Koregaon Park, Pune's most prestigious address. The apartment opens to a private garden and comes with a shared rooftop deck with OSHO garden views. Walking distance to German Bakery lane.",
+   519→      type: "Apartment",
+   520→      price: 21000000,
+   521→      city: "Pune",
+   522→      state: "Maharashtra",
+   523→      locality: "Koregaon Park",
+   524→      address: "Willow Court, Lane 7, Koregaon Park, Pune 411001",
+   525→      lat: 18.54,
+   526→      lng: 73.89,
+   527→      bhk: 3,
+   528→      bathrooms: 3,
+   529→      carpetArea: 1410,
+   530→      builtUpArea: 1680,
+   531→      furnishing: "Semi-Furnished",
+   532→      parking: 1,
+   533→      floorInfo: "2 of 4",
+   534→      facing: "East",
+   535→      constructionStatus: "READY_TO_MOVE",
+   536→      ageOfProperty: "2-3 years",
+   537→      sellerId: anil.id,
+   538→      status: "PUBLISHED",
+   539→      views: 132,
+   540→      images: [img("ap-living.png"), img("ap-balcony.png"), img("ap-bathroom.png"), img("ap-building.png")],
+   541→      amenities: ["Power Backup", "Lift", "24x7 Security", "CCTV Surveillance", "Balcony", "Car Parking", "Landscaped Gardens"],
+   542→      createdDaysAgo: 18,
+   543→    },
+   544→    {
+   545→      title: "Modern 2 BHK in Baner with Club Facilities",
+   546→      slug: "modern-2bhk-baner-pune",
+   547→      description:
+   548→        "A bright 2 BHK in a full-amenity complex on Baner Road. West-facing with glass railing balcony, vitrified flooring and a fully equipped clubhouse. Walking distance to Balewadi High Street and the Mumbai-Bengaluru highway.",
+   549→      type: "Apartment",
+   550→      price: 10200000,
+   551→      city: "Pune",
+   552→      state: "Maharashtra",
+   553→      locality: "Baner",
+   554→      address: "Sky Heights, Baner Road, Pune 411045",
+   555→      lat: 18.56,
+   556→      lng: 73.78,
+   557→      bhk: 2,
+   558→      bathrooms: 2,
+   559→      carpetArea: 880,
+   560→      builtUpArea: 1020,
+   561→      furnishing: "Unfurnished",
+   562→      parking: 1,
+   563→      floorInfo: "6 of 12",
+   564→      facing: "West",
+   565→      constructionStatus: "READY_TO_MOVE",
+   566→      ageOfProperty: "1-2 years",
+   567→      sellerId: anil.id,
+   568→      status: "PENDING",
+   569→      views: 0,
+   570→      images: [img("ap-building.png"), img("ap-living.png"), img("pool.png")],
+   571→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "Children's Play Area", "24x7 Security", "Car Parking"],
+   572→      createdDaysAgo: 2,
+   573→    },
+   574→    {
+   575→      title: "Premium 3 BHK at Sthirya Verdant Court, Gachibowli",
+   576→      slug: "premium-3bhk-verdant-court-gachibowli-hyderabad",
+   577→      description:
+   578→        "A ready-to-move 3 BHK at Sthirya Verdant Court, Gachibowli, with a double-height living room and private deck. Fully fitted with modular kitchen, wardrobes and false ceiling lighting. The tower overlooks the central landscape court and includes rooftop clubhouse access.",
+   579→      type: "Apartment",
+   580→      price: 16500000,
+   581→      city: "Hyderabad",
+   582→      state: "Telangana",
+   583→      locality: "Gachibowli",
+   584→      address: "Sthirya Verdant Court, Financial District Road, Gachibowli, Hyderabad 500032",
+   585→      lat: 17.44,
+   586→      lng: 78.35,
+   587→      bhk: 3,
+   588→      bathrooms: 3,
+   589→      carpetArea: 1520,
+   590→      builtUpArea: 1780,
+   591→      furnishing: "Semi-Furnished",
+   592→      parking: 2,
+   593→      floorInfo: "8 of 14",
+   594→      facing: "East",
+   595→      constructionStatus: "READY_TO_MOVE",
+   596→      ageOfProperty: "0-1 years",
+   597→      sellerId: meera.id,
+   598→      builderId: sthirya.id,
+   599→      projectId: verdant.id,
+   600→      status: "PUBLISHED",
+   601→      featured: true,
+   602→      views: 276,
+   603→      images: [img("facade.png"), img("ap-living.png"), img("ap-kitchen.png"), img("clubhouse.png"), img("pool.png")],
+   604→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "Sports Facility", "Jogging Track", "24x7 Security", "Modular Kitchen", "Balcony", "Car Parking"],
+   605→      createdDaysAgo: 25,
+   606→    },
+   607→    {
+   608→      title: "Architectural 4 BHK Villa in Jubilee Hills",
+   609→      slug: "architectural-4bhk-villa-jubilee-hills-hyderabad",
+   610→      description:
+   611→        "A one-of-a-kind 4 BHK villa in Jubilee Hills designed by a national-award-winning architect. Double-height living volume, courtyard with reflecting pool, home theatre and a rooftop garden. West-facing plot in a quiet cul-de-sac near KBR National Park extension.",
+   612→      type: "Villa",
+   613→      price: 58000000,
+   614→      city: "Hyderabad",
+   615→      state: "Telangana",
+   616→      locality: "Jubilee Hills",
+   617→      address: "Road 36, Jubilee Hills, Hyderabad 500033",
+   618→      lat: 17.43,
+   619→      lng: 78.41,
+   620→      bhk: 4,
+   621→      bathrooms: 5,
+   622→      carpetArea: 4200,
+   623→      builtUpArea: 4850,
+   624→      plotArea: 6000,
+   625→      furnishing: "Fully-Furnished",
+   626→      parking: 3,
+   627→      floorInfo: "G+2",
+   628→      facing: "West",
+   629→      constructionStatus: "READY_TO_MOVE",
+   630→      ageOfProperty: "4-5 years",
+   631→      sellerId: sunita.id,
+   632→      status: "PUBLISHED",
+   633→      featured: true,
+   634→      views: 401,
+   635→      images: [img("villa-ext.png"), img("villa-int.png"), img("ap-living.png"), img("pool.png")],
+   636→      amenities: ["Power Backup", "Lift", "Swimming Pool", "Gym", "24x7 Security", "CCTV Surveillance", "Modular Kitchen", "Servant Room", "Balcony", "Gated Community", "Landscaped Gardens"],
+   637→      createdDaysAgo: 40,
+   638→    },
+   639→    {
+   640→      title: "Ready 3 BHK at Sthirya The Nest, Sector 150 Noida",
+   641→      slug: "ready-3bhk-the-nest-sector-150-noida",
+   642→      description:
+   643→        "A 3 BHK at The Nest in Sector 150, Noida's greenest sector. Corner unit with park-facing views, modular kitchen, and covered terrace. The community offers a 5-acre central park, cycling loop and sports facilities. Expected completion March 2027.",
+   644→      type: "Apartment",
+   645→      price: 12500000,
+   646→      city: "Noida",
+   647→      state: "Uttar Pradesh",
+   648→      locality: "Sector 150",
+   649→      address: "Sthirya The Nest, Sector 150, Noida 201310",
+   650→      lat: 28.41,
+   651→      lng: 77.52,
+   652→      bhk: 3,
+   653→      bathrooms: 3,
+   654→      carpetArea: 1290,
+   655→      builtUpArea: 1540,
+   656→      furnishing: "Unfurnished",
+   657→      parking: 1,
+   658→      floorInfo: "4 of 13",
+   659→      facing: "North-East",
+   660→      constructionStatus: "UNDER_CONSTRUCTION",
+   661→      possessionDate: "Mar 2027",
+   662→      sellerId: meera.id,
+   663→      builderId: sthirya.id,
+   664→      projectId: nest.id,
+   665→      status: "PUBLISHED",
+   666→      views: 145,
+   667→      images: [img("ap-building.png"), img("ap-living.png"), img("pool.png")],
+   668→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "Children's Play Area", "24x7 Security", "Car Parking", "Landscaped Gardens"],
+   669→      createdDaysAgo: 28,
+   670→    },
+   671→    {
+   672→      title: "Signature 4 BHK on Golf Course Road, Gurugram",
+   673→      slug: "signature-4bhk-golf-course-road-gurugram",
+   674→      description:
+   675→        "A signature 4 BHK on Golf Course Road with a 26 ft. wide living room, staff quarters and a wrap-around balcony. The 22-storey tower offers concierge services, a sky lounge and is minutes from DLF CyberHub and premium schools.",
+   676→      type: "Apartment",
+   677→      price: 42000000,
+   678→      city: "Gurugram",
+   679→      state: "Haryana",
+   680→      locality: "Golf Course Road",
+   681→      address: "The Camellias Gate 2, Golf Course Road, Gurugram 122002",
+   682→      lat: 28.46,
+   683→      lng: 77.1,
+   684→      bhk: 4,
+   685→      bathrooms: 5,
+   686→      carpetArea: 2600,
+   687→      builtUpArea: 3100,
+   688→      furnishing: "Semi-Furnished",
+   689→      parking: 2,
+   690→      floorInfo: "15 of 22",
+   691→      facing: "South-East",
+   692→      constructionStatus: "READY_TO_MOVE",
+   693→      ageOfProperty: "2-4 years",
+   694→      sellerId: vikram.id,
+   695→      status: "PUBLISHED",
+   696→      featured: true,
+   697→      views: 388,
+   698→      images: [img("ap-living.png"), img("ap-kitchen.png"), img("ap-balcony.png"), img("ap-building.png")],
+   699→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "24x7 Security", "CCTV Surveillance", "Intercom", "Modular Kitchen", "Servant Room", "Balcony", "Car Parking"],
+   700→      createdDaysAgo: 30,
+   701→    },
+   702→    {
+   703→      title: "Independent 3 BHK House in Noida Sector 45",
+   704→      slug: "independent-3bhk-house-sector-45-noida",
+   705→      description:
+   706→        "An independent 3 BHK house on a 200 sq. yd. plot in Sector 45, Noida. Recently renovated with a new modular kitchen, Italian marble on the ground floor and a first-floor family lounge. Private parking for two cars and a landscaped front yard.",
+   707→      type: "Independent House",
+   708→      price: 24000000,
+   709→      city: "Noida",
+   710→      state: "Uttar Pradesh",
+   711→      locality: "Sector 45",
+   712→      address: "H-Block, Sector 45, Noida 201301",
+   713→      lat: 28.57,
+   714→      lng: 77.34,
+   715→      bhk: 3,
+   716→      bathrooms: 3,
+   717→      carpetArea: 1650,
+   718→      builtUpArea: 1950,
+   719→      plotArea: 1800,
+   720→      furnishing: "Semi-Furnished",
+   721→      parking: 2,
+   722→      floorInfo: "G+1",
+   723→      facing: "East",
+   724→      constructionStatus: "READY_TO_MOVE",
+   725→      ageOfProperty: "10+ years",
+   726→      sellerId: vikram.id,
+   727→      status: "PUBLISHED",
+   728→      views: 121,
+   729→      images: [img("house-ext.png"), img("ap-living.png"), img("ap-bedroom.png")],
+   730→      amenities: ["Power Backup", "24x7 Security", "Modular Kitchen", "Car Parking", "Landscaped Gardens"],
+   731→      createdDaysAgo: 22,
+   732→    },
+   733→    {
+   734→      title: "Charming Independent House in Adyar, Chennai",
+   735→      slug: "charming-independent-house-adyar-chennai",
+   736→      description:
+   737→        "A classic independent house in Adyar, Chennai, on a tree-lined street minutes from the Theosophical Society. Renovated bathrooms and electricals, teak wood doors, and a beautiful rear garden with a sit-out. Walk to Adyar signal and Bessy beach.",
+   738→      type: "Independent House",
+   739→      price: 28500000,
+   740→      city: "Chennai",
+   741→      state: "Tamil Nadu",
+   742→      locality: "Adyar",
+   743→      address: "2nd Cross Street, Shastri Nagar, Adyar, Chennai 600020",
+   744→      lat: 13.0,
+   745→      lng: 80.25,
+   746→      bhk: 3,
+   747→      bathrooms: 3,
+   748→      carpetArea: 1500,
+   749→      builtUpArea: 1800,
+   750→      plotArea: 2000,
+   751→      furnishing: "Semi-Furnished",
+   752→      parking: 2,
+   753→      floorInfo: "G+1",
+   754→      facing: "North-East",
+   755→      constructionStatus: "READY_TO_MOVE",
+   756→      ageOfProperty: "10+ years",
+   757→      sellerId: sunita.id,
+   758→      status: "PUBLISHED",
+   759→      views: 154,
+   760→      images: [img("house-ext.png"), img("ap-living.png"), img("ap-balcony.png")],
+   761→      amenities: ["Power Backup", "24x7 Security", "Car Parking", "Landscaped Gardens", "Gated Community"],
+   762→      createdDaysAgo: 26,
+   763→    },
+   764→    {
+   765→      title: "Spacious 3 BHK in New Town, Kolkata",
+   766→      slug: "spacious-3bhk-new-town-kolkata",
+   767→      description:
+   768→        "A well-ventilated 3 BHK in New Town's Action Area 1, with views of the wetlands. Corner flat with cross ventilation, large utility balcony and covered parking. Close to the airport, Salt Lake Sector V and top schools.",
+   769→      type: "Flat",
+   770→      price: 9800000,
+   771→      city: "Kolkata",
+   772→      state: "West Bengal",
+   773→      locality: "New Town",
+   774→      address: "AA-1, New Town, Kolkata 700156",
+   775→      lat: 22.58,
+   776→      lng: 88.46,
+   777→      bhk: 3,
+   778→      bathrooms: 2,
+   779→      carpetArea: 1150,
+   780→      builtUpArea: 1320,
+   781→      furnishing: "Unfurnished",
+   782→      parking: 1,
+   783→      floorInfo: "5 of 9",
+   784→      facing: "South",
+   785→      constructionStatus: "READY_TO_MOVE",
+   786→      ageOfProperty: "5-7 years",
+   787→      sellerId: sunita.id,
+   788→      status: "PUBLISHED",
+   789→      views: 87,
+   790→      images: [img("ap-living.png"), img("ap-bedroom.png"), img("ap-kitchen.png")],
+   791→      amenities: ["Power Backup", "Lift", "24x7 Security", "Intercom", "Car Parking", "Children's Play Area"],
+   792→      createdDaysAgo: 14,
+   793→    },
+   794→    {
+   795→      title: "Heritage-Style 4 BHK House in Vaishali Nagar, Jaipur",
+   796→      slug: "heritage-style-4bhk-vaishali-nagar-jaipur",
+   797→      description:
+   798→        "A thoughtfully designed 4 BHK house in Vaishali Nagar blending Rajasthani craft with modern comfort — jharokha-inspired balconies, a courtyard plan and sandstone accents. Walking distance to Central Park and Jaipur's best cafes.",
+   799→      type: "Independent House",
+   800→      price: 13500000,
+   801→      city: "Jaipur",
+   802→      state: "Rajasthan",
+   803→      locality: "Vaishali Nagar",
+   804→      address: "Sector 5, Vaishali Nagar, Jaipur 302021",
+   805→      lat: 26.92,
+   806→      lng: 75.74,
+   807→      bhk: 4,
+   808→      bathrooms: 4,
+   809→      carpetArea: 1850,
+   810→      builtUpArea: 2200,
+   811→      plotArea: 2250,
+   812→      furnishing: "Semi-Furnished",
+   813→      parking: 2,
+   814→      floorInfo: "G+1",
+   815→      facing: "North",
+   816→      constructionStatus: "READY_TO_MOVE",
+   817→      ageOfProperty: "3-5 years",
+   818→      sellerId: vikram.id,
+   819→      status: "DRAFT",
+   820→      views: 0,
+   821→      images: [img("house-ext.png"), img("ap-living.png")],
+   822→      amenities: ["Power Backup", "24x7 Security", "Modular Kitchen", "Car Parking", "Landscaped Gardens"],
+   823→      createdDaysAgo: 3,
+   824→    },
+   825→    {
+   826→      title: "Meridian Skyline — 3 BHK Park-Facing Residence (Sold)",
+   827→      slug: "meridian-skyline-3bhk-park-facing-bengaluru",
+   828→      description:
+   829→        "A park-facing 3 BHK at Meridian Skyline with views over the 2-acre central greens. Corner unit with extended deck, premium finishes and two covered parkings. Scheduled for completion by December 2026.",
+   830→      type: "Apartment",
+   831→      price: 14800000,
+   832→      city: "Bengaluru",
+   833→      state: "Karnataka",
+   834→      locality: "Whitefield",
+   835→      address: "Meridian Skyline, Whitefield Main Road, Bengaluru 560066",
+   836→      lat: 12.97,
+   837→      lng: 77.73,
+   838→      bhk: 3,
+   839→      bathrooms: 3,
+   840→      carpetArea: 1290,
+   841→      builtUpArea: 1560,
+   842→      furnishing: "Unfurnished",
+   843→      parking: 2,
+   844→      floorInfo: "6 of 21",
+   845→      facing: "North",
+   846→      constructionStatus: "UNDER_CONSTRUCTION",
+   847→      possessionDate: "Dec 2026",
+   848→      sellerId: kabir.id,
+   849→      builderId: meridian.id,
+   850→      projectId: skyline.id,
+   851→      status: "PUBLISHED",
+   852→      availability: "SOLD",
+   853→      views: 233,
+   854→      images: [img("facade.png"), img("ap-living.png"), img("township.png")],
+   855→      amenities: ["Power Backup", "Lift", "Clubhouse", "Swimming Pool", "Gym", "24x7 Security", "Balcony", "Car Parking"],
+   856→      createdDaysAgo: 35,
+   857→    },
+   858→  ];
+   859→
+   860→  const createdProps: Record<string, string> = {};
+   861→  for (const p of props) {
+   862→    const property = await db.property.create({
+   863→      data: {
+   864→        title: p.title,
+   865→        slug: p.slug,
+   866→        description: p.description,
+   867→        type: p.type,
+   868→        price: p.price,
+   869→        city: p.city,
+   870→        state: p.state,
+   871→        locality: p.locality,
+   872→        address: p.address,
+   873→        latitude: p.lat,
+   874→        longitude: p.lng,
+   875→        bhk: p.bhk,
+   876→        bathrooms: p.bathrooms,
+   877→        carpetArea: p.carpetArea,
+   878→        builtUpArea: p.builtUpArea,
+   879→        plotArea: p.plotArea,
+   880→        furnishing: p.furnishing,
+   881→        parking: p.parking ?? 0,
+   882→        floorInfo: p.floorInfo,
+   883→        facing: p.facing,
+   884→        constructionStatus: p.constructionStatus ?? "READY_TO_MOVE",
+   885→        possessionDate: p.possessionDate,
+   886→        ageOfProperty: p.ageOfProperty,
+   887→        sellerId: p.sellerId,
+   888→        builderId: p.builderId,
+   889→        projectId: p.projectId,
+   890→        status: p.status,
+   891→        availability: p.availability ?? (p.status === "PUBLISHED" ? "AVAILABLE" : "AVAILABLE"),
+   892→        featured: p.featured ?? false,
+   893→        views: p.views,
+   894→        createdAt: days(-p.createdDaysAgo),
+   895→        images: {
+   896→          create: p.images.map((url, i) => ({ url, isMain: i === 0, sortOrder: i })),
+   897→        },
+   898→        amenities: {
+   899→          create: p.amenities.map((name) => ({ name })),
+   900→        },
+   901→      },
+   902→    });
+   903→    createdProps[p.slug] = property.id;
+   904→  }
+   905→
+   906→  console.log("Creating agreements...");
+   907→  const builderAgreementMeridian = await db.builderAgreement.create({
+   908→    data: {
+   909→      reference: "VAS-AGR-BLD-2025-0001",
+   910→      builderId: meridian.id,
+   911→      commissionType: "PERCENTAGE",
+   912→      commissionRate: 1.0,
+   913→      startDate: days(-240),
+   914→      status: "ACTIVE",
+   915→      notes: "Channel partner agreement — 1% of sale value on platform-attributed bookings.",
+   916→    },
+   917→  });
+   918→  await db.builderAgreement.create({
+   919→    data: {
+   920→      reference: "VAS-AGR-BLD-2025-0002",
+   921→      builderId: sthirya.id,
+   922→      commissionType: "PERCENTAGE",
+   923→      commissionRate: 1.25,
+   924→      startDate: days(-190),
+   925→      status: "ACTIVE",
+   926→      notes: "Channel partner agreement — 1.25% of sale value on platform-attributed bookings.",
+   927→    },
+   928→  });
+   929→  const sellerAgreementSunita = await db.sellerAgreement.create({
+   930→    data: {
+   931→      reference: "VAS-AGR-SLR-2025-0001",
+   932→      sellerId: sunita.id,
+   933→      commissionType: "FIXED",
+   934→      fixedFee: 50000,
+   935→      startDate: days(-150),
+   936→      status: "ACTIVE",
+   937→      notes: "Fixed referral fee per successfully closed sale.",
+   938→    },
+   939→  });
+   940→  const sellerAgreementVikram = await db.sellerAgreement.create({
+   941→    data: {
+   942→      reference: "VAS-AGR-SLR-2025-0002",
+   943→      sellerId: vikram.id,
+   944→      commissionType: "PERCENTAGE",
+   945→      commissionRate: 1.0,
+   946→      startDate: days(-120),
+   947→      status: "ACTIVE",
+   948→      notes: "1% of sale value on platform-attributed transactions.",
+   949→    },
+   950→  });
+   951→
+   952→  console.log("Creating leads...");
+   953→  type LeadSeed = {
+   954→    slug: string;
+   955→    name: string;
+   956→    phone: string;
+   957→    email: string;
+   958→    budget?: number;
+   959→    message?: string;
+   960→    status: string;
+   961→    buyerId?: string;
+   962→    assigned?: boolean;
+   963→    followUpDays?: number;
+   964→    lastContactedDays?: number;
+   965→    createdDaysAgo: number;
+   966→    reference: string;
+   967→  };
+   968→
+   969→  const leadSeeds: LeadSeed[] = [
+   970→    {
+   971→      slug: "premium-3bhk-verdant-court-gachibowli-hyderabad",
+   972→      name: "Priya Sharma",
+   973→      phone: "+91 98330 44556",
+   974→      email: "buyer@vasati.in",
+   975→      budget: 18000000,
+   976→      message: "Interested in a ready-to-move 3 BHK. Would like to know the final price including registration.",
+   977→      status: "QUALIFIED",
+   978→      buyerId: priya.id,
+   979→      assigned: true,
+   980→      followUpDays: 1,
+   981→      lastContactedDays: -2,
+   982→      createdDaysAgo: 12,
+   983→      reference: "VAS-2025-000421",
+   984→    },
+   985→    {
+   986→      slug: "sunlit-3bhk-apartment-powai-mumbai",
+   987→      name: "Rohan Iyer",
+   988→      phone: "+91 99001 77889",
+   989→      email: "rohan@example.in",
+   990→      budget: 35000000,
+   991→      message: "Looking for a lake-facing unit with 2 parkings. Is the price negotiable?",
+   992→      status: "SITE_VISIT_SCHEDULED",
+   993→      buyerId: rohan.id,
+   994→      assigned: true,
+   995→      followUpDays: 3,
+   996→      lastContactedDays: -1,
+   997→      createdDaysAgo: 9,
+   998→      reference: "VAS-2025-000435",
+   999→    },
+  1000→    {
+  1001→      slug: "meridian-skyline-3bhk-whitefield-bengaluru",
+  1002→      name: "Ananya Reddy",
+  1003→      phone: "+91 90080 22110",
+  1004→      email: "ananya.reddy@example.in",
+  1005→      budget: 16000000,
+  1006→      message: "Want details on the sky deck 3 BHK and current launch offers.",
+  1007→      status: "NEGOTIATION",
+  1008→      assigned: true,
+  1009→      followUpDays: 2,
+  1010→      lastContactedDays: -1,
+  1011→      createdDaysAgo: 20,
+  1012→      reference: "VAS-2025-000377",
+  1013→    },
+  1014→    {
+  1015→      slug: "meridian-skyline-3bhk-park-facing-bengaluru",
+  1016→      name: "Karthik Subramanian",
+  1017→      phone: "+91 98860 71234",
+  1018→      email: "karthik.s@example.in",
+  1019→      budget: 15000000,
+  1020→      message: "Booked a park-facing 3 BHK after visiting through the platform.",
+  1021→      status: "CONVERTED",
+  1022→      assigned: true,
+  1023→      lastContactedDays: -10,
+  1024→      createdDaysAgo: 31,
+  1025→      reference: "VAS-2025-000312",
+  1026→    },
+  1027→    {
+  1028→      slug: "architectural-4bhk-villa-jubilee-hills-hyderabad",
+  1029→      name: "Nikhil Chandrasekhar",
+  1030→      phone: "+91 99590 88221",
+  1031→      email: "nikhil.c@example.in",
+  1032→      budget: 60000000,
+  1033→      message: "Would like a private viewing this weekend.",
+  1034→      status: "CONTACTED",
+  1035→      assigned: true,
+  1036→      followUpDays: 4,
+  1037→      lastContactedDays: -3,
+  1038→      createdDaysAgo: 8,
+  1039→      reference: "VAS-2025-000449",
+  1040→    },
+  1041→    {
+  1042→      slug: "signature-4bhk-golf-course-road-gurugram",
+  1043→      name: "Sneha Kulkarni",
+  1044→      phone: "+91 98730 55402",
+  1045→      email: "sneha.k@example.in",
+  1046→      budget: 45000000,
+  1047→      message: "Please share the floor plan and clubhouse details.",
+  1048→      status: "NEW",
+  1049→      createdDaysAgo: 1,
+  1050→      reference: "VAS-2025-000462",
+  1051→    },
+  1052→    {
+  1053→      slug: "elegant-3bhk-koregaon-park-pune",
+  1054→      name: "Aditya Menon",
+  1055→      phone: "+91 90280 41178",
+  1056→      email: "aditya.menon@example.in",
+  1057→      budget: 20000000,
+  1058→      message: "Need a north-facing unit if available.",
+  1059→      status: "LOST",
+  1060→      assigned: true,
+  1061→      lastContactedDays: -14,
+  1062→      createdDaysAgo: 26,
+  1063→      reference: "VAS-2025-000338",
+  1064→    },
+  1065→    {
+  1066→      slug: "ready-3bhk-the-nest-sector-150-noida",
+  1067→      name: "Divya Bansal",
+  1068→      phone: "+91 98110 90034",
+  1069→      email: "divya.b@example.in",
+  1070→      budget: 13000000,
+  1071→      message: "Ready to book — please confirm the unit hold process and payment schedule.",
+  1072→      status: "BOOKING",
+  1073→      assigned: true,
+  1074→      followUpDays: 1,
+  1075→      lastContactedDays: -1,
+  1076→      createdDaysAgo: 15,
+  1077→      reference: "VAS-2025-000395",
+  1078→    },
+  1079→    {
+  1080→      slug: "landmark-4bhk-residence-bandra-west-mumbai",
+  1081→      name: "Farhan Qureshi",
+  1082→      phone: "+91 99870 12306",
+  1083→      email: "farhan.q@example.in",
+  1084→      budget: 80000000,
+  1085→      message: "Interested in the sea-glimpse wrap-around balcony unit.",
+  1086→      status: "SITE_VISIT_COMPLETED",
+  1087→      assigned: true,
+  1088→      lastContactedDays: -4,
+  1089→      createdDaysAgo: 18,
+  1090→      reference: "VAS-2025-000360",
+  1091→    },
+  1092→  ];
+  1093→
+  1094→  const leadIds: Record<string, string> = {};
+  1095→  for (const l of leadSeeds) {
+  1096→    const propertyId = createdProps[l.slug];
+  1097→    const prop = await db.property.findUnique({ where: { id: propertyId }, select: { title: true } });
+  1098→    const lead = await db.lead.create({
+  1099→      data: {
+  1100→        reference: l.reference,
+  1101→        propertyId,
+  1102→        buyerId: l.buyerId,
+  1103→        name: l.name,
+  1104→        phone: l.phone,
+  1105→        email: l.email,
+  1106→        budget: l.budget,
+  1107→        message: l.message,
+  1108→        status: l.status,
+  1109→        assignedToId: l.assigned ? admin.id : null,
+  1110→        followUpDate: l.followUpDays != null ? days(l.followUpDays) : null,
+  1111→        lastContactedAt: l.lastContactedDays != null ? days(-l.lastContactedDays) : null,
+  1112→        createdAt: days(-l.createdDaysAgo),
+  1113→        activities: {
+  1114→          create: [
+  1115→            { type: "SYSTEM", note: `Enquiry received via website for "${prop?.title}"`, createdAt: days(-l.createdDaysAgo) },
+  1116→            ...(l.status !== "NEW"
+  1117→              ? [
+  1118→                  {
+  1119→                    type: "STATUS_CHANGE",
+  1120→                    userId: admin.id,
+  1121→                    note: `Status updated to ${l.status.replace(/_/g, " ").toLowerCase()}`,
+  1122→                    createdAt: days(-l.createdDaysAgo + 1),
+  1123→                  },
+  1124→                ]
+  1125→              : []),
+  1126→            ...(l.assigned
+  1127→              ? [
+  1128→                  {
+  1129→                    type: "ASSIGNMENT",
+  1130→                    userId: admin.id,
+  1131→                    note: "Lead assigned to Arjun Nair",
+  1132→                    createdAt: days(-l.createdDaysAgo + 1),
+  1133→                  },
+  1134→                ]
+  1135→              : []),
+  1136→          ],
+  1137→        },
+  1138→      },
+  1139→    });
+  1140→    leadIds[l.reference] = lead.id;
+  1141→  }
+  1142→
+  1143→  console.log("Creating site visits...");
+  1144→  await db.siteVisit.create({
+  1145→    data: {
+  1146→      propertyId: createdProps["premium-3bhk-verdant-court-gachibowli-hyderabad"],
+  1147→      buyerId: priya.id,
+  1148→      leadId: leadIds["VAS-2025-000421"],
+  1149→      preferredDate: days(3),
+  1150→      preferredTime: "11:00 AM",
+  1151→      contactName: "Priya Sharma",
+  1152→      contactPhone: "+91 98330 44556",
+  1153→      status: "CONFIRMED",
+  1154→      notes: "Buyer confirmed; sales desk to arrange clubhouse tour as well.",
+  1155→    },
+  1156→  });
+  1157→  await db.siteVisit.create({
+  1158→    data: {
+  1159→      propertyId: createdProps["sunlit-3bhk-apartment-powai-mumbai"],
+  1160→      buyerId: rohan.id,
+  1161→      leadId: leadIds["VAS-2025-000435"],
+  1162→      preferredDate: days(5),
+  1163→      preferredTime: "04:00 PM",
+  1164→      contactName: "Rohan Iyer",
+  1165→      contactPhone: "+91 99001 77889",
+  1166→      status: "REQUESTED",
+  1167→    },
+  1168→  });
+  1169→  await db.siteVisit.create({
+  1170→    data: {
+  1171→      propertyId: createdProps["landmark-4bhk-residence-bandra-west-mumbai"],
+  1172→      leadId: leadIds["VAS-2025-000360"],
+  1173→      preferredDate: days(-4),
+  1174→      preferredTime: "12:00 PM",
+  1175→      contactName: "Farhan Qureshi",
+  1176→      contactPhone: "+91 99870 12306",
+  1177→      status: "COMPLETED",
+  1178→      notes: "Visited with family; liked the unit, negotiating on parking.",
+  1179→    },
+  1180→  });
+  1181→  await db.siteVisit.create({
+  1182→    data: {
+  1183→      propertyId: createdProps["architectural-4bhk-villa-jubilee-hills-hyderabad"],
+  1184→      leadId: leadIds["VAS-2025-000449"],
+  1185→      preferredDate: days(7),
+  1186→      preferredTime: "10:00 AM",
+  1187→      contactName: "Nikhil Chandrasekhar",
+  1188→      contactPhone: "+91 99590 88221",
+  1189→      status: "REQUESTED",
+  1190→    },
+  1191→  });
+  1192→
+  1193→  console.log("Creating transaction + commission...");
+  1194→  const convertedLead = await db.lead.findUnique({ where: { id: leadIds["VAS-2025-000312"] } });
+  1195→  const soldProp = await db.property.findUnique({
+  1196→    where: { id: createdProps["meridian-skyline-3bhk-park-facing-bengaluru"] },
+  1197→  });
+  1198→  const transaction = await db.transaction.create({
+  1199→    data: {
+  1200→      reference: "VAS-TXN-2025-0007",
+  1201→      leadId: convertedLead?.id,
+  1202→      propertyId: soldProp!.id,
+  1203→      buyerId: null,
+  1204→      sellerId: soldProp!.sellerId,
+  1205→      builderId: soldProp!.builderId!,
+  1206→      saleValue: 14800000,
+  1207→      bookingDate: days(-11),
+  1208→      agreementRef: "MSKY-BKNG-0442",
+  1209→      status: "COMPLETED",
+  1210→      completionDate: days(-2),
+  1211→      notes: "Booking confirmed through platform-attributed lead VAS-2025-000312.",
+  1212→      commission: {
+  1213→        create: {
+  1214→          builderAgreementId: builderAgreementMeridian.id,
+  1215→          commissionType: "PERCENTAGE",
+  1216→          rate: 1.0,
+  1217→          amount: 148000,
+  1218→          dueDate: days(18),
+  1219→          paidAmount: 80000,
+  1220→          status: "PARTIAL",
+  1221→          payments: {
+  1222→            create: [
+  1223→              {
+  1224→                amount: 80000,
+  1225→                paidOn: days(-5),
+  1226→                method: "BANK_TRANSFER",
+  1227→                reference: "UTR/AXIS/889124",
+  1228→                recordedById: admin.id,
+  1229→              },
+  1230→            ],
+  1231→          },
+  1232→        },
+  1233→      },
+  1234→    },
+  1235→  });
+  1236→
+  1237→  console.log("Creating favourites...");
+  1238→  await db.favourite.createMany({
+  1239→    data: [
+  1240→      { userId: priya.id, propertyId: createdProps["premium-3bhk-verdant-court-gachibowli-hyderabad"] },
+  1241→      { userId: priya.id, propertyId: createdProps["sunlit-3bhk-apartment-powai-mumbai"] },
+  1242→      { userId: priya.id, propertyId: createdProps["signature-4bhk-golf-course-road-gurugram"] },
+  1243→      { userId: rohan.id, propertyId: createdProps["sunlit-3bhk-apartment-powai-mumbai"] },
+  1244→    ],
+  1245→  });
+  1246→
+  1247→  console.log("Creating featured listings...");
+  1248→  for (const slug of [
+  1249→    "sunlit-3bhk-apartment-powai-mumbai",
+  1250→    "premium-3bhk-verdant-court-gachibowli-hyderabad",
+  1251→    "architectural-4bhk-villa-jubilee-hills-hyderabad",
+  1252→    "signature-4bhk-golf-course-road-gurugram",
+  1253→  ]) {
+  1254→    await db.featuredListing.create({
+  1255→      data: {
+  1256→        propertyId: createdProps[slug],
+  1257→        package: "FEATURED",
+  1258→        startDate: days(-20),
+  1259→        endDate: days(10),
+  1260→        amount: 2500,
+  1261→        isActive: true,
+  1262→      },
+  1263→    });
+  1264→  }
+  1265→
+  1266→  console.log("Creating notifications...");
+  1267→  await db.notification.createMany({
+  1268→    data: [
+  1269→      {
+  1270→        userId: admin.id,
+  1271→        title: "New enquiry received",
+  1272→        message: "Sneha Kulkarni enquired about Signature 4 BHK on Golf Course Road.",
+  1273→        type: "ENQUIRY",
+  1274→        link: "#/dashboard?tab=leads",
+  1275→      },
+  1276→      {
+  1277→        userId: admin.id,
+  1278→        title: "Listing pending approval",
+  1279→        message: "Modern 2 BHK in Baner with Club Facilities was submitted for review.",
+  1280→        type: "LISTING",
+  1281→        link: "#/dashboard?tab=properties",
+  1282→      },
+  1283→      {
+  1284→        userId: admin.id,
+  1285→        title: "Project pending approval",
+  1286→        message: "Sthirya The Nest (Sector 150, Noida) is awaiting review.",
+  1287→        type: "LISTING",
+  1288→        link: "#/dashboard?tab=projects",
+  1289→      },
+  1290→      {
+  1291→        userId: admin.id,
+  1292→        title: "Site visit requested",
+  1293→        message: "Rohan Iyer requested a visit for the Powai 3 BHK.",
+  1294→        type: "VISIT",
+  1295→        link: "#/dashboard?tab=visits",
+  1296→      },
+  1297→      {
+  1298→        userId: sunita.id,
+  1299→        title: "New enquiry on your listing",
+  1300→        message: "Priya Sharma enquired about your 3 BHK in Gachibowli.",
+  1301→        type: "ENQUIRY",
+  1302→        link: "#/dashboard?tab=enquiries",
+  1303→      },
+  1304→      {
+  1305→        userId: priya.id,
+  1306→        title: "Site visit confirmed",
+  1307→        message: "Your visit to Sthirya Verdant Court, Gachibowli has been confirmed.",
+  1308→        type: "VISIT",
+  1309→        link: "#/dashboard?tab=visits",
+  1310→      },
+  1311→      {
+  1312→        userId: kabir.id,
+  1313→        title: "Transaction recorded",
+  1314→        message: "A booking at Meridian Skyline was confirmed via platform lead VAS-2025-000312.",
+  1315→        type: "TRANSACTION",
+  1316→        link: "#/dashboard",
+  1317→      },
+  1318→    ],
+  1319→  });
+  1320→
+  1321→  console.log("Creating audit logs...");
+  1322→  await db.auditLog.createMany({
+  1323→    data: [
+  1324→      {
+  1325→        userId: admin.id,
+  1326→        action: "BUILDER_VERIFIED",
+  1327→        entity: "USER",
+  1328→        entityId: kabir.id,
+  1329→        details: "Meridian Developers verified after document review.",
+  1330→      },
+  1331→      {
+  1332→        userId: admin.id,
+  1333→        action: "LISTING_APPROVED",
+  1334→        entity: "PROPERTY",
+  1335→        entityId: createdProps["ready-3bhk-the-nest-sector-150-noida"],
+  1336→        details: "Listing approved and published.",
+  1337→      },
+  1338→      {
+  1339→        userId: admin.id,
+  1340→        action: "TRANSACTION_CREATED",
+  1341→        entity: "TRANSACTION",
+  1342→        entityId: transaction.id,
+  1343→        details: "Sale value ₹1,48,00,000; commission 1% per agreement VAS-AGR-BLD-2025-0001.",
+  1344→      },
+  1345→      {
+  1346→        userId: admin.id,
+  1347→        action: "COMMISSION_PAYMENT_RECORDED",
+  1348→        entity: "COMMISSION",
+  1349→        details: "₹80,000 received via bank transfer (UTR/AXIS/889124).",
+  1350→      },
+  1351→    ],
+  1352→  });
+  1353→
+  1354→  console.log("Creating contact message + settings...");
+  1355→  await db.contactMessage.create({
+  1356→    data: {
+  1357→      name: "Ramesh Gupta",
+  1358→      email: "ramesh.g@example.in",
+  1359→      phone: "+91 98730 10001",
+  1360→      subject: "Listing my property",
+  1361→      message: "I own a 3 BHK in Sector 82, Gurugram and would like to list it on Vasati.",
+  1362→    },
+  1363→  });
+  1364→  await db.setting.createMany({
+  1365→    data: [
+  1366→      { key: "site.supportEmail", value: "support@vasati.in" },
+  1367→      { key: "site.supportPhone", value: "+91 80 4718 2200" },
+  1368→      { key: "commission.defaultRate", value: "1.0" },
+  1369→      { key: "listings.autoPublish", value: "false" },
+  1370→    ],
+  1371→  });
+  1372→
+  1373→  const counts = {
+  1374→    users: await db.user.count(),
+  1375→    builders: await db.builder.count(),
+  1376→    projects: await db.project.count(),
+  1377→    properties: await db.property.count(),
+  1378→    leads: await db.lead.count(),
+  1379→    visits: await db.siteVisit.count(),
+  1380→    transactions: await db.transaction.count(),
+  1381→  };
+  1382→  console.log("Seed complete:", counts);
+  1383→}
+  1384→
+  1385→main()
+  1386→  .catch((e) => {
+  1387→    console.error(e);
+  1388→    process.exit(1);
+  1389→  })
+  1390→  .finally(async () => {
+  1391→    await db.$disconnect();
+  1392→  });
+  1393→
