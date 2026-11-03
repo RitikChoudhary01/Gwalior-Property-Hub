@@ -92,8 +92,13 @@ export function MarketplaceApp() {
   const loadUser = useAppStore((s) => s.loadUser);
 
   useEffect(() => {
+    // Route init runs immediately so the hashchange listener is attached
+    // before any early navigation. The auth restore is deferred until the
+    // hydration window closes — its state update landing mid-hydration can
+    // shift Radix useIds in boundaries that are still hydrating.
     initRoute();
-    loadUser();
+    const t = setTimeout(() => void loadUser(), 50);
+    return () => clearTimeout(t);
   }, [initRoute, loadUser]);
 
   return (

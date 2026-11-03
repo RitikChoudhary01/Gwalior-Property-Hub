@@ -43,10 +43,20 @@ export async function createSession(userId: string): Promise<string> {
 }
 
 export function sessionCookieOptions() {
+  // The app is frequently viewed inside cross-site iframes (e.g. the web
+  // preview panel). Browsers reject SameSite=Lax cookies in that context,
+  // so authenticated APIs would 401 even though the user just signed in.
+  // SameSite=None; Secure; Partitioned (CHIPS) works in first-party tabs,
+  // cross-site iframes and survives third-party cookie blocking in Chrome.
+  // NOTE: protocol detection via X-Forwarded-Proto is unreliable here — the
+  // sandbox gateway terminates TLS upstream and forwards plain HTTP — so we
+  // always emit the iframe-safe attributes. Chrome accepts Secure cookies
+  // on localhost, and production is always HTTPS.
   return {
     httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    sameSite: "none" as const,
+    secure: true,
+    partitioned: true,
     path: "/",
     maxAge: SESSION_DAYS * 86400,
   };

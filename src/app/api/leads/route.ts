@@ -24,7 +24,7 @@ const createSchema = z.object({
 export async function POST(req: Request) {
   return handle(async () => {
     const ip = clientIp(req);
-    if (!rateLimit(`lead:${ip}`, 8, 3600000)) {
+    if (!rateLimit(`lead:${ip}`, 15, 3600000)) {
       return fail("Too many enquiries from this device. Please try again later.", 429);
     }
 

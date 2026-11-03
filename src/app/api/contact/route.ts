@@ -16,7 +16,7 @@ const schema = z.object({
 export async function POST(req: Request) {
   return handle(async () => {
     const ip = clientIp(req);
-    if (!rateLimit(`contact:${ip}`, 5, 3600000)) {
+    if (!rateLimit(`contact:${ip}`, 15, 3600000)) {
       return fail("Too many messages. Please try again later.", 429);
     }
 

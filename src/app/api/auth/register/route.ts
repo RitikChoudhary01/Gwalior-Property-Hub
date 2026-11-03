@@ -29,7 +29,7 @@ const schema = z.object({
 export async function POST(req: Request) {
   return handle(async () => {
     const ip = clientIp(req);
-    if (!rateLimit(`register:${ip}`, 5, 3600000)) {
+    if (!rateLimit(`register:${ip}`, 12, 3600000)) {
       return fail("Too many registration attempts. Please try again later.", 429);
     }
 

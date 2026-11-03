@@ -7,12 +7,16 @@ import { NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { AuthError } from "@/lib/auth";
 
+// All API responses are dynamic (auth/session-aware) — never let browsers
+// or proxies serve them from cache, or a stale 401 could persist after login.
+const NO_STORE = { "Cache-Control": "no-store, max-age=0" } as const;
+
 export function ok<T>(data: T, status = 200) {
-  return NextResponse.json(data as object, { status });
+  return NextResponse.json(data as object, { status, headers: NO_STORE });
 }
 
 export function fail(message: string, status = 400, extra?: Record<string, unknown>) {
-  return NextResponse.json({ error: message, ...extra }, { status });
+  return NextResponse.json({ error: message, ...extra }, { status, headers: NO_STORE });
 }
 
 /** Wraps a route handler with uniform error handling. */

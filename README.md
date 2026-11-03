@@ -116,6 +116,13 @@ bun run lint
 
 - Passwords: scrypt with per-user salt (never stored in plain text)
 - Sessions: opaque tokens in httpOnly cookies, 30-day expiry, revoked on logout
+- Session cookie: `SameSite=None; Secure; Partitioned` (CHIPS) — required so
+  the app works when embedded in cross-site iframes (e.g. web preview panels).
+  `SameSite=Lax` cookies are rejected by browsers in third-party iframe
+  contexts, which silently breaks every authenticated API call. Chrome accepts
+  `Secure` cookies on localhost, and production is always HTTPS.
+- API responses carry `Cache-Control: no-store` so a pre-login 401 can never
+  be served from browser cache after signing in
 - Every API route validates session + role; object-level ownership checks on all mutations
 - Uploads validated by file extension **and** magic-number sniffing, 5 MB cap
 - Rate limiting on auth, enquiry, and contact endpoints

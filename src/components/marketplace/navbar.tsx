@@ -90,6 +90,80 @@ export function Navbar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-2.5">
+          {/* Mobile menu */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="order-last lg:hidden" aria-label="Open menu">
+                <Menu className="size-5" aria-hidden="true" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72">
+              <SheetTitle className="px-1">
+                <Logo />
+              </SheetTitle>
+              <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
+                {NAV_LINKS.map((link) => (
+                  <a
+                    key={link.href}
+                    href={`#${link.href}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(link.href);
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive(link.href) ? "bg-accent text-accent-foreground" : "text-foreground/80 hover:bg-muted"
+                    )}
+                  >
+                    {link.href === "/properties" && <Home className="size-4" aria-hidden="true" />}
+                    {link.href === "/projects" && <Building2 className="size-4" aria-hidden="true" />}
+                    {link.href === "/about" && <Info className="size-4" aria-hidden="true" />}
+                    {link.href === "/contact" && <Mail className="size-4" aria-hidden="true" />}
+                    {link.label}
+                  </a>
+                ))}
+                <div className="my-3 h-px bg-border" />
+                {user ? (
+                  <>
+                    <a
+                      href="#/dashboard"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate("/dashboard");
+                      }}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted"
+                    >
+                      <LayoutDashboard className="size-4" aria-hidden="true" /> Dashboard
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-muted"
+                    >
+                      <LogOut className="size-4" aria-hidden="true" /> Sign out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <a
+                      href="#/login"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate("/login");
+                      }}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted"
+                    >
+                      <User className="size-4" aria-hidden="true" /> Sign in
+                    </a>
+                    <Button className="mt-2" onClick={() => navigate("/register")}>
+                      Create account
+                    </Button>
+                  </>
+                )}
+              </nav>
+            </SheetContent>
+          </Sheet>
+
           {user ? (
             <>
               {/* Notifications */}
@@ -197,79 +271,6 @@ export function Navbar() {
             </>
           )}
 
-          {/* Mobile menu */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
-                <Menu className="size-5" aria-hidden="true" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-72">
-              <SheetTitle className="px-1">
-                <Logo />
-              </SheetTitle>
-              <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
-                {NAV_LINKS.map((link) => (
-                  <a
-                    key={link.href}
-                    href={`#${link.href}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate(link.href);
-                    }}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive(link.href) ? "bg-accent text-accent-foreground" : "text-foreground/80 hover:bg-muted"
-                    )}
-                  >
-                    {link.href === "/properties" && <Home className="size-4" aria-hidden="true" />}
-                    {link.href === "/projects" && <Building2 className="size-4" aria-hidden="true" />}
-                    {link.href === "/about" && <Info className="size-4" aria-hidden="true" />}
-                    {link.href === "/contact" && <Mail className="size-4" aria-hidden="true" />}
-                    {link.label}
-                  </a>
-                ))}
-                <div className="my-3 h-px bg-border" />
-                {user ? (
-                  <>
-                    <a
-                      href="#/dashboard"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate("/dashboard");
-                      }}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted"
-                    >
-                      <LayoutDashboard className="size-4" aria-hidden="true" /> Dashboard
-                    </a>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-muted"
-                    >
-                      <LogOut className="size-4" aria-hidden="true" /> Sign out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <a
-                      href="#/login"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate("/login");
-                      }}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-muted"
-                    >
-                      <User className="size-4" aria-hidden="true" /> Sign in
-                    </a>
-                    <Button className="mt-2" onClick={() => navigate("/register")}>
-                      Create account
-                    </Button>
-                  </>
-                )}
-              </nav>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
     </header>

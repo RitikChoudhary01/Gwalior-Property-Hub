@@ -13,7 +13,7 @@ const schema = z.object({
 export async function POST(req: Request) {
   return handle(async () => {
     const ip = clientIp(req);
-    if (!rateLimit(`login:${ip}`, 10, 900000)) {
+    if (!rateLimit(`login:${ip}`, 30, 900000)) {
       return fail("Too many sign-in attempts. Please try again in a few minutes.", 429);
     }
 
