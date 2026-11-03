@@ -1,0 +1,718 @@
+     1→"use client";
+     2→
+     3→// ============================================================
+     4→// BuyerDashboard — role dashboard for BUYER accounts.
+     5→// Tabs: overview / favourites / enquiries / visits / profile.
+     6→// Mobile: horizontal scrollable tab bar. Desktop: left sidebar.
+     7→// The active tab syncs to the URL (?tab=…) with replace.
+     8→// ============================================================
+     9→
+    10→import { useCallback, useEffect, useMemo, useState } from "react";
+    11→import { toast } from "sonner";
+    12→import {
+    13→  ArrowRight,
+    14→  CalendarDays,
+    15→  Heart,
+    16→  LayoutDashboard,
+    17→  Loader2,
+    18→  LogOut,
+    19→  Mail,
+    20→  MessageSquareText,
+    21→  Phone,
+    22→  Search,
+    23→  UserRound,
+    24→  XCircle,
+    25→} from "lucide-react";
+    26→import { cn } from "@/lib/utils";
+    27→import { api } from "@/lib/api-client";
+    28→import { useAppStore } from "@/store/use-app-store";
+    29→import { formatDate, formatMonthYear, formatNumber, formatPrice, initials } from "@/lib/format";
+    30→import type { BuyerStats, LeadDTO, Paginated, PropertyCardDTO, SiteVisitDTO } from "@/lib/types";
+    31→import { EmptyState, SectionHeading, StatCard } from "../../shared/section";
+    32→import { StatusBadge } from "../../shared/status-badge";
+    33→import { PropertyCard } from "../../shared/property-card";
+    34→import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+    35→import {
+    36→  AlertDialog,
+    37→  AlertDialogAction,
+    38→  AlertDialogCancel,
+    39→  AlertDialogContent,
+    40→  AlertDialogDescription,
+    41→  AlertDialogFooter,
+    42→  AlertDialogHeader,
+    43→  AlertDialogTitle,
+    44→} from "@/components/ui/alert-dialog";
+    45→import { Button } from "@/components/ui/button";
+    46→import { Skeleton } from "@/components/ui/skeleton";
+    47→
+    48→// ---------- tabs ----------
+    49→
+    50→const TABS = [
+    51→  { id: "overview", label: "Overview", icon: LayoutDashboard },
+    52→  { id: "favourites", label: "Favourites", icon: Heart },
+    53→  { id: "enquiries", label: "Enquiries", icon: MessageSquareText },
+    54→  { id: "visits", label: "Site visits", icon: CalendarDays },
+    55→  { id: "profile", label: "Profile", icon: UserRound },
+    56→] as const;
+    57→
+    58→type TabId = (typeof TABS)[number]["id"];
+    59→const VALID_TABS: readonly string[] = TABS.map((t) => t.id);
+    60→
+    61→// ---------- data hook (local to this view) ----------
+    62→
+    63→function useApiData<T>(path: string) {
+    64→  const [data, setData] = useState<T | null>(null);
+    65→  const [loading, setLoading] = useState(true);
+    66→  const [error, setError] = useState<string | null>(null);
+    67→  const [reloadKey, setReloadKey] = useState(0);
+    68→  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
+    69→
+    70→  // Fetches on mount and on manual refetch. All state updates happen in
+    71→  // async callbacks — previously loaded data stays visible during a refresh.
+    72→  useEffect(() => {
+    73→    let cancelled = false;
+    74→    api<T>(path)
+    75→      .then((res) => {
+    76→        if (cancelled) return;
+    77→        setData(res);
+    78→        setError(null);
+    79→        setLoading(false);
+    80→      })
+    81→      .catch((e: unknown) => {
+    82→        if (cancelled) return;
+    83→        setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+    84→        setLoading(false);
+    85→      });
+    86→    return () => {
+    87→      cancelled = true;
+    88→    };
+    89→  }, [path, reloadKey]);
+    90→
+    91→  return { data, loading, error, refetch };
+    92→}
+    93→
+    94→function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+    95→  return (
+    96→    <EmptyState
+    97→      icon={<XCircle className="size-6" aria-hidden="true" />}
+    98→      title="Could not load this section"
+    99→      description={message}
+   100→      action={<Button onClick={onRetry}>Try again</Button>}
+   101→    />
+   102→  );
+   103→}
+   104→
+   105→// ============================================================
+   106→// Overview tab
+   107→// ============================================================
+   108→
+   109→function OverviewTab() {
+   110→  const navigate = useAppStore((s) => s.navigate);
+   111→  const { data, loading, error, refetch } = useApiData<BuyerStats>("/api/stats");
+   112→
+   113→  if (loading) {
+   114→    return (
+   115→      <div className="space-y-8">
+   116→        <div className="grid gap-4 sm:grid-cols-3">
+   117→          {[...Array(3)].map((_, i) => (
+   118→            <Skeleton key={i} className="h-28 rounded-xl" />
+   119→          ))}
+   120→        </div>
+   121→        <Skeleton className="h-72 rounded-xl" />
+   122→      </div>
+   123→    );
+   124→  }
+   125→
+   126→  if (error || !data) return <ErrorState message={error ?? "Please try again."} onRetry={refetch} />;
+   127→
+   128→  const quickLinks = [
+   129→    { label: "Browse properties", icon: Search, onClick: () => navigate("/properties") },
+   130→    { label: "My favourites", icon: Heart, onClick: () => navigate("/dashboard?tab=favourites") },
+   131→    { label: "My enquiries", icon: MessageSquareText, onClick: () => navigate("/dashboard?tab=enquiries") },
+   132→    { label: "My site visits", icon: CalendarDays, onClick: () => navigate("/dashboard?tab=visits") },
+   133→  ];
+   134→
+   135→  return (
+   136→    <div className="space-y-8">
+   137→      <div className="grid gap-4 sm:grid-cols-3">
+   138→        <StatCard
+   139→          label="Favourites"
+   140→          value={formatNumber(data.favourites)}
+   141→          sub="Homes you have saved"
+   142→          icon={<Heart className="size-5" aria-hidden="true" />}
+   143→        />
+   144→        <StatCard
+   145→          label="Enquiries raised"
+   146→          value={formatNumber(data.enquiries)}
+   147→          sub="Across all properties"
+   148→          icon={<MessageSquareText className="size-5" aria-hidden="true" />}
+   149→        />
+   150→        <StatCard
+   151→          label="Upcoming visits"
+   152→          value={formatNumber(data.upcomingVisits)}
+   153→          sub="Requested, confirmed or rescheduled"
+   154→          icon={<CalendarDays className="size-5" aria-hidden="true" />}
+   155→        />
+   156→      </div>
+   157→
+   158→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   159→        {quickLinks.map((l) => (
+   160→          <button
+   161→            key={l.label}
+   162→            type="button"
+   163→            onClick={l.onClick}
+   164→            className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+   165→          >
+   166→            <span className="flex min-w-0 items-center gap-3">
+   167→              <l.icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+   168→              <span className="truncate text-sm font-medium text-foreground">{l.label}</span>
+   169→            </span>
+   170→            <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+   171→          </button>
+   172→        ))}
+   173→      </div>
+   174→
+   175→      <section>
+   176→        <SectionHeading
+   177→          eyebrow="Trending now"
+   178→          title="Homes buyers are viewing"
+   179→          description="The most viewed properties on Vasati right now."
+   180→          linkText="Explore all"
+   181→          linkHref="#/properties"
+   182→        />
+   183→        {data.recentProperties.length === 0 ? (
+   184→          <EmptyState
+   185→            title="Nothing to show yet"
+   186→            description="Published homes will appear here as buyers start exploring."
+   187→            className="mt-6"
+   188→          />
+   189→        ) : (
+   190→          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   191→            {data.recentProperties.map((p) => (
+   192→              <PropertyCard key={p.id} property={p} />
+   193→            ))}
+   194→          </div>
+   195→        )}
+   196→      </section>
+   197→    </div>
+   198→  );
+   199→}
+   200→
+   201→// ============================================================
+   202→// Favourites tab
+   203→// ============================================================
+   204→
+   205→function FavouritesTab() {
+   206→  const navigate = useAppStore((s) => s.navigate);
+   207→  const favourites = useAppStore((s) => s.favourites);
+   208→  const { data, loading, error, refetch } = useApiData<{ data: PropertyCardDTO[] }>(
+   209→    "/api/favourites/properties"
+   210→  );
+   211→
+   212→  // The card heart toggles the store instantly — mirror it here so
+   213→  // removed favourites disappear from the grid without a refetch.
+   214→  const shown = useMemo(
+   215→    () => (data?.data ?? []).filter((p) => favourites.includes(p.id)),
+   216→    [data, favourites]
+   217→  );
+   218→
+   219→  if (loading) {
+   220→    return (
+   221→      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   222→        {[...Array(3)].map((_, i) => (
+   223→          <Skeleton key={i} className="h-80 rounded-xl" />
+   224→        ))}
+   225→      </div>
+   226→    );
+   227→  }
+   228→
+   229→  if (error) return <ErrorState message={error} onRetry={refetch} />;
+   230→
+   231→  if (shown.length === 0) {
+   232→    return (
+   233→      <EmptyState
+   234→        icon={<Heart className="size-6" aria-hidden="true" />}
+   235→        title="No favourites yet"
+   236→        description="Tap the heart on any listing to save it here and compare later."
+   237→        action={<Button onClick={() => navigate("/properties")}>Browse properties</Button>}
+   238→      />
+   239→    );
+   240→  }
+   241→
+   242→  return (
+   243→    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   244→      {shown.map((p) => (
+   245→        <PropertyCard key={p.id} property={p} />
+   246→      ))}
+   247→    </div>
+   248→  );
+   249→}
+   250→
+   251→// ============================================================
+   252→// Enquiries tab (buyer's own enquiries)
+   253→// ============================================================
+   254→
+   255→function EnquiriesTab() {
+   256→  const navigate = useAppStore((s) => s.navigate);
+   257→  const { data, loading, error, refetch } = useApiData<Paginated<LeadDTO>>("/api/leads?pageSize=50");
+   258→  const leads = data?.data ?? [];
+   259→
+   260→  if (loading) {
+   261→    return (
+   262→      <div className="space-y-4">
+   263→        {[...Array(3)].map((_, i) => (
+   264→          <Skeleton key={i} className="h-36 rounded-xl" />
+   265→        ))}
+   266→      </div>
+   267→    );
+   268→  }
+   269→
+   270→  if (error) return <ErrorState message={error} onRetry={refetch} />;
+   271→
+   272→  if (leads.length === 0) {
+   273→    return (
+   274→      <EmptyState
+   275→        icon={<MessageSquareText className="size-6" aria-hidden="true" />}
+   276→        title="No enquiries yet"
+   277→        description="When you contact a listing owner, your enquiry and its status will show up here."
+   278→        action={<Button onClick={() => navigate("/properties")}>Browse properties</Button>}
+   279→      />
+   280→    );
+   281→  }
+   282→
+   283→  return (
+   284→    <div className="space-y-4">
+   285→      {leads.map((lead) => (
+   286→        <article key={lead.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+   287→          <div className="flex gap-4">
+   288→            <button
+   289→              type="button"
+   290→              onClick={() => navigate(`/properties/${lead.property.slug}`)}
+   291→              className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted"
+   292→              aria-label={`Open ${lead.property.title}`}
+   293→            >
+   294→              {lead.property.mainImage ? (
+   295→                <img
+   296→                  src={lead.property.mainImage}
+   297→                  alt={lead.property.title}
+   298→                  loading="lazy"
+   299→                  className="size-full object-cover"
+   300→                />
+   301→              ) : (
+   302→                <span className="grid size-full place-items-center text-muted-foreground">
+   303→                  <Search className="size-5" aria-hidden="true" />
+   304→                </span>
+   305→              )}
+   306→            </button>
+   307→            <div className="min-w-0 flex-1">
+   308→              <div className="flex flex-wrap items-center gap-2">
+   309→                <button
+   310→                  type="button"
+   311→                  onClick={() => navigate(`/properties/${lead.property.slug}`)}
+   312→                  className="truncate text-left text-[15px] font-medium text-foreground hover:text-primary"
+   313→                >
+   314→                  {lead.property.title}
+   315→                </button>
+   316→                <StatusBadge status={lead.status} />
+   317→              </div>
+   318→              <p className="mt-1 text-[13px] text-muted-foreground">
+   319→                Ref {lead.reference} · {lead.property.locality}, {lead.property.city} ·{" "}
+   320→                {formatPrice(lead.property.price)}
+   321→              </p>
+   322→              {lead.message && (
+   323→                <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+   324→                  {lead.message}
+   325→                </p>
+   326→              )}
+   327→            </div>
+   328→          </div>
+   329→          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[13px] text-muted-foreground">
+   330→            {lead.budget != null && (
+   331→              <span>
+   332→                Budget: <span className="font-medium text-foreground">{formatPrice(lead.budget)}</span>
+   333→              </span>
+   334→            )}
+   335→            <span className="sm:ml-auto">Submitted {formatDate(lead.createdAt)}</span>
+   336→          </div>
+   337→        </article>
+   338→      ))}
+   339→    </div>
+   340→  );
+   341→}
+   342→
+   343→// ============================================================
+   344→// Visits tab (buyer's own site visits)
+   345→// ============================================================
+   346→
+   347→const ACTIVE_VISIT_STATUSES = ["REQUESTED", "CONFIRMED", "RESCHEDULED"];
+   348→
+   349→function VisitsTab() {
+   350→  const navigate = useAppStore((s) => s.navigate);
+   351→  const { data, loading, error, refetch } = useApiData<Paginated<SiteVisitDTO>>(
+   352→    "/api/site-visits?pageSize=50"
+   353→  );
+   354→  const [busyId, setBusyId] = useState<string | null>(null);
+   355→  const [confirmVisit, setConfirmVisit] = useState<SiteVisitDTO | null>(null);
+   356→
+   357→  const visits = data?.data ?? [];
+   358→
+   359→  const todayStart = new Date();
+   360→  todayStart.setHours(0, 0, 0, 0);
+   361→
+   362→  const isUpcoming = (v: SiteVisitDTO) =>
+   363→    ACTIVE_VISIT_STATUSES.includes(v.status) && new Date(v.preferredDate) >= todayStart;
+   364→  const upcoming = visits.filter(isUpcoming);
+   365→  const past = visits.filter((v) => !isUpcoming(v));
+   366→
+   367→  async function cancelVisit(visit: SiteVisitDTO) {
+   368→    setBusyId(visit.id);
+   369→    try {
+   370→      await api(`/api/site-visits/${visit.id}`, {
+   371→        method: "PATCH",
+   372→        body: JSON.stringify({ status: "CANCELLED" }),
+   373→      });
+   374→      toast.success("Visit request cancelled", { description: visit.property.title });
+   375→      setConfirmVisit(null);
+   376→      refetch();
+   377→    } catch (e) {
+   378→      toast.error(e instanceof Error ? e.message : "Could not cancel the visit. Please try again.");
+   379→    } finally {
+   380→      setBusyId(null);
+   381→    }
+   382→  }
+   383→
+   384→  if (loading) {
+   385→    return (
+   386→      <div className="space-y-4">
+   387→        {[...Array(2)].map((_, i) => (
+   388→          <Skeleton key={i} className="h-40 rounded-xl" />
+   389→        ))}
+   390→      </div>
+   391→    );
+   392→  }
+   393→
+   394→  if (error) return <ErrorState message={error} onRetry={refetch} />;
+   395→
+   396→  if (visits.length === 0) {
+   397→    return (
+   398→      <EmptyState
+   399→        icon={<CalendarDays className="size-6" aria-hidden="true" />}
+   400→        title="No site visits yet"
+   401→        description="Found a home you like? Request a guided visit from the listing page and track it here."
+   402→        action={<Button onClick={() => navigate("/properties")}>Browse properties</Button>}
+   403→      />
+   404→    );
+   405→  }
+   406→
+   407→  function VisitCard({ visit }: { visit: SiteVisitDTO }) {
+   408→    const cancellable = ACTIVE_VISIT_STATUSES.includes(visit.status) && isUpcoming(visit);
+   409→    return (
+   410→      <article className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+   411→        <div className="flex flex-wrap items-start justify-between gap-3">
+   412→          <div className="min-w-0">
+   413→            <div className="flex flex-wrap items-center gap-2">
+   414→              <h3 className="truncate text-[15px] font-medium text-foreground">{visit.property.title}</h3>
+   415→              <StatusBadge status={visit.status} />
+   416→            </div>
+   417→            <p className="mt-1 text-[13px] text-muted-foreground">
+   418→              {visit.property.locality}, {visit.property.city}
+   419→            </p>
+   420→          </div>
+   421→          <Button
+   422→            type="button"
+   423→            variant="outline"
+   424→            size="sm"
+   425→            onClick={() => navigate(`/properties/${visit.property.slug}`)}
+   426→          >
+   427→            View listing
+   428→          </Button>
+   429→        </div>
+   430→        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[13px] text-muted-foreground">
+   431→          <span className="inline-flex items-center gap-1.5">
+   432→            <CalendarDays className="size-4" aria-hidden="true" />
+   433→            {formatDate(visit.preferredDate)}
+   434→          </span>
+   435→          <span>{visit.preferredTime}</span>
+   436→          {cancellable && (
+   437→            <Button
+   438→              type="button"
+   439→              variant="outline"
+   440→              size="sm"
+   441→              className="ml-auto text-destructive hover:text-destructive"
+   442→              disabled={busyId === visit.id}
+   443→              onClick={() => setConfirmVisit(visit)}
+   444→            >
+   445→              {busyId === visit.id && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+   446→              Cancel request
+   447→            </Button>
+   448→          )}
+   449→        </div>
+   450→      </article>
+   451→    );
+   452→  }
+   453→
+   454→  return (
+   455→    <div className="space-y-8">
+   456→      <section aria-labelledby="upcoming-visits-heading">
+   457→        <h2 id="upcoming-visits-heading" className="font-display text-lg font-semibold text-foreground">
+   458→          Upcoming
+   459→        </h2>
+   460→        {upcoming.length === 0 ? (
+   461→          <p className="mt-3 rounded-xl border border-dashed bg-card/60 px-4 py-6 text-center text-sm text-muted-foreground">
+   462→            No upcoming visits. Request one from any listing page.
+   463→          </p>
+   464→        ) : (
+   465→          <div className="mt-4 space-y-4">
+   466→            {upcoming.map((v) => (
+   467→              <VisitCard key={v.id} visit={v} />
+   468→            ))}
+   469→          </div>
+   470→        )}
+   471→      </section>
+   472→
+   473→      {past.length > 0 && (
+   474→        <section aria-labelledby="past-visits-heading">
+   475→          <h2 id="past-visits-heading" className="font-display text-lg font-semibold text-foreground">
+   476→            Past
+   477→          </h2>
+   478→          <div className="mt-4 space-y-4">
+   479→            {past.map((v) => (
+   480→              <VisitCard key={v.id} visit={v} />
+   481→            ))}
+   482→          </div>
+   483→        </section>
+   484→      )}
+   485→
+   486→      <AlertDialog open={!!confirmVisit} onOpenChange={(o) => !o && setConfirmVisit(null)}>
+   487→        <AlertDialogContent>
+   488→          <AlertDialogHeader>
+   489→            <AlertDialogTitle>Cancel this visit request?</AlertDialogTitle>
+   490→            <AlertDialogDescription>
+   491→              {confirmVisit &&
+   492→                `Your visit to "${confirmVisit.property.title}" on ${formatDate(
+   493→                  confirmVisit.preferredDate
+   494→                )} at ${confirmVisit.preferredTime} will be cancelled.`}
+   495→            </AlertDialogDescription>
+   496→          </AlertDialogHeader>
+   497→          <AlertDialogFooter>
+   498→            <AlertDialogCancel disabled={busyId !== null}>Keep visit</AlertDialogCancel>
+   499→            <AlertDialogAction
+   500→              disabled={busyId !== null}
+   501→              onClick={(e) => {
+   502→                e.preventDefault();
+   503→                if (confirmVisit) void cancelVisit(confirmVisit);
+   504→              }}
+   505→              className="bg-destructive text-white hover:bg-destructive/90"
+   506→            >
+   507→              {busyId !== null && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+   508→              Cancel visit
+   509→            </AlertDialogAction>
+   510→          </AlertDialogFooter>
+   511→        </AlertDialogContent>
+   512→      </AlertDialog>
+   513→    </div>
+   514→  );
+   515→}
+   516→
+   517→// ============================================================
+   518→// Profile tab
+   519→// ============================================================
+   520→
+   521→function ProfileTab() {
+   522→  const user = useAppStore((s) => s.user);
+   523→  const logout = useAppStore((s) => s.logout);
+   524→  const [signingOut, setSigningOut] = useState(false);
+   525→
+   526→  if (!user) return null;
+   527→
+   528→  async function handleSignOut() {
+   529→    setSigningOut(true);
+   530→    try {
+   531→      await logout();
+   532→      toast.success("Signed out", { description: "See you soon." });
+   533→    } catch {
+   534→      toast.error("Could not sign out. Please try again.");
+   535→    } finally {
+   536→      setSigningOut(false);
+   537→    }
+   538→  }
+   539→
+   540→  return (
+   541→    <div className="space-y-6">
+   542→      <div className="rounded-xl border bg-card p-6 shadow-sm">
+   543→        <div className="flex flex-wrap items-center gap-4">
+   544→          <Avatar className="size-16">
+   545→            <AvatarFallback className="bg-primary/10 font-display text-xl font-semibold text-primary">
+   546→              {initials(user.name)}
+   547→            </AvatarFallback>
+   548→          </Avatar>
+   549→          <div>
+   550→            <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">{user.name}</h2>
+   551→            <p className="mt-0.5 text-sm text-muted-foreground">Buyer account</p>
+   552→          </div>
+   553→        </div>
+   554→
+   555→        <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+   556→          <div className="rounded-lg border bg-background p-3.5">
+   557→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   558→              <Mail className="size-3.5" aria-hidden="true" /> Email
+   559→            </dt>
+   560→            <dd className="mt-1.5 truncate text-sm font-medium text-foreground">{user.email}</dd>
+   561→          </div>
+   562→          <div className="rounded-lg border bg-background p-3.5">
+   563→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   564→              <Phone className="size-3.5" aria-hidden="true" /> Phone
+   565→            </dt>
+   566→            <dd className="mt-1.5 text-sm font-medium text-foreground">{user.phone ?? "Not provided"}</dd>
+   567→          </div>
+   568→          <div className="rounded-lg border bg-background p-3.5">
+   569→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   570→              <CalendarDays className="size-3.5" aria-hidden="true" /> Member since
+   571→            </dt>
+   572→            <dd className="mt-1.5 text-sm font-medium text-foreground">
+   573→              {formatMonthYear(user.createdAt)}
+   574→            </dd>
+   575→          </div>
+   576→          <div className="rounded-lg border bg-background p-3.5">
+   577→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   578→              <UserRound className="size-3.5" aria-hidden="true" /> Account type
+   579→            </dt>
+   580→            <dd className="mt-1.5 text-sm font-medium text-foreground">Buyer</dd>
+   581→          </div>
+   582→        </dl>
+   583→      </div>
+   584→
+   585→      <div className="rounded-xl border bg-card p-5 shadow-sm">
+   586→        <h3 className="text-sm font-semibold text-foreground">Account settings</h3>
+   587→        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+   588→          For security, profile details are managed by our team. To change your email address or delete
+   589→          your account, contact support at{" "}
+   590→          <a href="mailto:support@vasati.in" className="font-medium text-primary hover:underline">
+   591→            support@vasati.in
+   592→          </a>
+   593→          .
+   594→        </p>
+   595→      </div>
+   596→
+   597→      <div>
+   598→        <Button
+   599→          type="button"
+   600→          variant="outline"
+   601→          className="text-destructive hover:text-destructive"
+   602→          onClick={() => void handleSignOut()}
+   603→          disabled={signingOut}
+   604→        >
+   605→          {signingOut ? (
+   606→            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+   607→          ) : (
+   608→            <LogOut className="size-4" aria-hidden="true" />
+   609→          )}
+   610→          Sign out
+   611→        </Button>
+   612→      </div>
+   613→    </div>
+   614→  );
+   615→}
+   616→
+   617→// ============================================================
+   618→// BuyerDashboard shell
+   619→// ============================================================
+   620→
+   621→export function BuyerDashboard({ initialTab }: { initialTab?: string }) {
+   622→  const user = useAppStore((s) => s.user);
+   623→  const navigate = useAppStore((s) => s.navigate);
+   624→  const route = useAppStore((s) => s.route);
+   625→
+   626→  // The URL is the single source of truth for the active tab. The
+   627→  // initialTab prop seeds the first render (it comes from the same ?tab=
+   628→  // query parameter, so the two always agree).
+   629→  const tabParam = route.query.get("tab") ?? initialTab;
+   630→  const activeTab: TabId =
+   631→    tabParam && VALID_TABS.includes(tabParam) ? (tabParam as TabId) : "overview";
+   632→
+   633→  function selectTab(tab: TabId) {
+   634→    navigate(`/dashboard?tab=${tab}`, { replace: true });
+   635→  }
+   636→
+   637→  const firstName = user?.name.split(" ")[0] ?? "there";
+   638→
+   639→  return (
+   640→    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+   641→      <header>
+   642→        <p className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">Buyer dashboard</p>
+   643→        <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+   644→          Welcome back, {firstName}
+   645→        </h1>
+   646→        <p className="mt-1.5 text-sm text-muted-foreground">
+   647→          Track your saved homes, enquiries and site visits in one place.
+   648→        </p>
+   649→      </header>
+   650→
+   651→      <div className="mt-8 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+   652→        {/* Mobile: horizontal scrollable tab bar */}
+   653→        <nav
+   654→          aria-label="Dashboard sections"
+   655→          className="vasati-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:hidden"
+   656→        >
+   657→          {TABS.map((t) => {
+   658→            const Icon = t.icon;
+   659→            const active = activeTab === t.id;
+   660→            return (
+   661→              <button
+   662→                key={t.id}
+   663→                type="button"
+   664→                onClick={() => selectTab(t.id)}
+   665→                aria-current={active ? "page" : undefined}
+   666→                className={cn(
+   667→                  "flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+   668→                  active
+   669→                    ? "border-primary bg-primary text-primary-foreground"
+   670→                    : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+   671→                )}
+   672→              >
+   673→                <Icon className="size-4" aria-hidden="true" />
+   674→                {t.label}
+   675→              </button>
+   676→            );
+   677→          })}
+   678→        </nav>
+   679→
+   680→        {/* Desktop: left sidebar */}
+   681→        <nav aria-label="Dashboard sections" className="hidden lg:block">
+   682→          <div className="flex w-56 flex-col gap-1 rounded-xl border bg-card p-2 shadow-sm">
+   683→            {TABS.map((t) => {
+   684→              const Icon = t.icon;
+   685→              const active = activeTab === t.id;
+   686→              return (
+   687→                <button
+   688→                  key={t.id}
+   689→                  type="button"
+   690→                  onClick={() => selectTab(t.id)}
+   691→                  aria-current={active ? "page" : undefined}
+   692→                  className={cn(
+   693→                    "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+   694→                    active
+   695→                      ? "bg-primary text-primary-foreground"
+   696→                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+   697→                  )}
+   698→                >
+   699→                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+   700→                  {t.label}
+   701→                </button>
+   702→              );
+   703→            })}
+   704→          </div>
+   705→        </nav>
+   706→
+   707→        <div className="mt-6 min-w-0 lg:mt-0">
+   708→          {activeTab === "overview" && <OverviewTab />}
+   709→          {activeTab === "favourites" && <FavouritesTab />}
+   710→          {activeTab === "enquiries" && <EnquiriesTab />}
+   711→          {activeTab === "visits" && <VisitsTab />}
+   712→          {activeTab === "profile" && <ProfileTab />}
+   713→        </div>
+   714→      </div>
+   715→    </section>
+   716→  );
+   717→}
+   718→

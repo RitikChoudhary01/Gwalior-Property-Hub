@@ -48,6 +48,7 @@ const ROLE_FILTERS = [
   { value: "BUYER", label: ROLE_LABELS.BUYER },
   { value: "SELLER", label: ROLE_LABELS.SELLER },
   { value: "BUILDER", label: ROLE_LABELS.BUILDER },
+  { value: "TEAM", label: ROLE_LABELS.TEAM },
   { value: "ADMIN", label: ROLE_LABELS.ADMIN },
 ];
 

@@ -1,0 +1,810 @@
+     1→"use client";
+     2→
+     3→// ============================================================
+     4→// Shared dashboard primitives — data-fetch hook, tab sync with
+     5→// the URL, filter bars, table chrome and the visits board used
+     6→// by both the builder and the admin dashboards.
+     7→// ============================================================
+     8→
+     9→import { useCallback, useEffect, useState } from "react";
+    10→import { toast } from "sonner";
+    11→import {
+    12→  AlertTriangle,
+    13→  CalendarClock,
+    14→  CalendarDays,
+    15→  Check,
+    16→  CheckCircle2,
+    17→  ChevronLeft,
+    18→  ChevronRight,
+    19→  MapPin,
+    20→  Search,
+    21→  X,
+    22→} from "lucide-react";
+    23→import { api, ApiError } from "@/lib/api-client";
+    24→import { useAppStore } from "@/store/use-app-store";
+    25→import { cn } from "@/lib/utils";
+    26→import { formatDate, formatNumber, initials } from "@/lib/format";
+    27→import { ROLE_LABELS, VISIT_STATUSES, VISIT_TIME_SLOTS } from "@/lib/constants";
+    28→import type { Pagination, SiteVisitDTO } from "@/lib/types";
+    29→import { Button } from "@/components/ui/button";
+    30→import {
+    31→  Dialog,
+    32→  DialogContent,
+    33→  DialogDescription,
+    34→  DialogFooter,
+    35→  DialogHeader,
+    36→  DialogTitle,
+    37→} from "@/components/ui/dialog";
+    38→import { Input } from "@/components/ui/input";
+    39→import { Label } from "@/components/ui/label";
+    40→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    41→import { Skeleton } from "@/components/ui/skeleton";
+    42→import { EmptyState } from "../../../shared/section";
+    43→import { StatusBadge } from "../../../shared/status-badge";
+    44→
+    45→// ------------------------------------------------------------
+    46→// Query-string helper
+    47→// ------------------------------------------------------------
+    48→
+    49→export function qs(params: Record<string, string | number | undefined | null | false>): string {
+    50→  const sp = new URLSearchParams();
+    51→  for (const [key, value] of Object.entries(params)) {
+    52→    if (value === undefined || value === null || value === "" || value === false) continue;
+    53→    sp.set(key, String(value));
+    54→  }
+    55→  const s = sp.toString();
+    56→  return s ? `?${s}` : "";
+    57→}
+    58→
+    59→// ------------------------------------------------------------
+    60→// Data hooks
+    61→// ------------------------------------------------------------
+    62→
+    63→export function useApiData<T>(
+    64→  fetcher: () => Promise<T>,
+    65→  deps: ReadonlyArray<unknown>
+    66→): { data: T | null; loading: boolean; error: string | null; refetch: () => void } {
+    67→  const [data, setData] = useState<T | null>(null);
+    68→  const [loading, setLoading] = useState(true);
+    69→  const [error, setError] = useState<string | null>(null);
+    70→  const [tick, setTick] = useState(0);
+    71→  const refetch = useCallback(() => setTick((t) => t + 1), []);
+    72→
+    73→  useEffect(() => {
+    74→    let cancelled = false;
+    75→    const run = async () => {
+    76→      setLoading(true);
+    77→      setError(null);
+    78→      try {
+    79→        const res = await fetcher();
+    80→        if (!cancelled) {
+    81→          setData(res);
+    82→          setLoading(false);
+    83→        }
+    84→      } catch (err) {
+    85→        if (!cancelled) {
+    86→          setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    87→          setLoading(false);
+    88→        }
+    89→      }
+    90→    };
+    91→    void run();
+    92→    return () => {
+    93→      cancelled = true;
+    94→    };
+    95→  }, [...deps, tick]);
+    96→
+    97→  return { data, loading, error, refetch };
+    98→}
+    99→
+   100→export function useDebounced<T>(value: T, delay = 350): T {
+   101→  const [debounced, setDebounced] = useState(value);
+   102→  useEffect(() => {
+   103→    const t = setTimeout(() => setDebounced(value), delay);
+   104→    return () => clearTimeout(t);
+   105→  }, [value, delay]);
+   106→  return debounced;
+   107→}
+   108→
+   109→/** Tab state derived from /dashboard?tab=x — the URL is the source of truth. */
+   110→export function useDashboardTab(
+   111→  validTabs: readonly string[],
+   112→  initialTab?: string
+   113→): [string, (tab: string) => void] {
+   114→  const navigate = useAppStore((s) => s.navigate);
+   115→  const route = useAppStore((s) => s.route);
+   116→  const routeTab = route.query.get("tab") ?? "";
+   117→  const tab =
+   118→    routeTab && validTabs.includes(routeTab)
+   119→      ? routeTab
+   120→      : !routeTab && initialTab && validTabs.includes(initialTab)
+   121→        ? initialTab
+   122→        : validTabs[0];
+   123→
+   124→  const select = useCallback(
+   125→    (next: string) => {
+   126→      if (!validTabs.includes(next) || next === tab) return;
+   127→      navigate(`/dashboard?tab=${next}`, { replace: true });
+   128→    },
+   129→    [tab, navigate, validTabs]
+   130→  );
+   131→
+   132→  return [tab, select];
+   133→}
+   134→
+   135→// ------------------------------------------------------------
+   136→// Mutation helper — toast + refetch + friendly errors
+   137→// ------------------------------------------------------------
+   138→
+   139→export async function runAction(
+   140→  fn: () => Promise<unknown>,
+   141→  success: string,
+   142→  opts?: { description?: string; onDone?: () => void }
+   143→): Promise<boolean> {
+   144→  try {
+   145→    await fn();
+   146→    toast.success(success, opts?.description ? { description: opts.description } : undefined);
+   147→    opts?.onDone?.();
+   148→    return true;
+   149→  } catch (err) {
+   150→    toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+   151→    return false;
+   152→  }
+   153→}
+   154→
+   155→// ------------------------------------------------------------
+   156→// Layout chrome
+   157→// ------------------------------------------------------------
+   158→
+   159→export function TabIntro({
+   160→  eyebrow,
+   161→  title,
+   162→  description,
+   163→  actions,
+   164→}: {
+   165→  eyebrow: string;
+   166→  title: string;
+   167→  description?: string;
+   168→  actions?: React.ReactNode;
+   169→}) {
+   170→  return (
+   171→    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+   172→      <div>
+   173→        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+   174→        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground">
+   175→          {title}
+   176→        </h1>
+   177→        {description && <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>}
+   178→      </div>
+   179→      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+   180→    </div>
+   181→  );
+   182→}
+   183→
+   184→export function AdminCard({
+   185→  title,
+   186→  description,
+   187→  action,
+   188→  children,
+   189→  className,
+   190→  bodyClassName,
+   191→}: {
+   192→  title?: string;
+   193→  description?: string;
+   194→  action?: React.ReactNode;
+   195→  children: React.ReactNode;
+   196→  className?: string;
+   197→  bodyClassName?: string;
+   198→}) {
+   199→  return (
+   200→    <section className={cn("overflow-hidden rounded-xl border bg-card shadow-sm", className)}>
+   201→      {title || action ? (
+   202→        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3.5 sm:px-5">
+   203→          <div className="min-w-0">
+   204→            {title && <h2 className="font-display text-base font-semibold text-foreground">{title}</h2>}
+   205→            {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+   206→          </div>
+   207→          {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+   208→        </header>
+   209→      ) : null}
+   210→      <div className={bodyClassName}>{children}</div>
+   211→    </section>
+   212→  );
+   213→}
+   214→
+   215→export function TableSkeleton({ rows = 6 }: { rows?: number }) {
+   216→  return (
+   217→    <div className="space-y-2 p-4 sm:p-5">
+   218→      {[...Array(rows)].map((_, i) => (
+   219→        <Skeleton key={i} className="h-12 w-full rounded-lg" />
+   220→      ))}
+   221→    </div>
+   222→  );
+   223→}
+   224→
+   225→export function SkeletonCards({ count = 6, className }: { count?: number; className?: string }) {
+   226→  return (
+   227→    <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", className)}>
+   228→      {[...Array(count)].map((_, i) => (
+   229→        <Skeleton key={i} className="h-52 rounded-xl" />
+   230→      ))}
+   231→    </div>
+   232→  );
+   233→}
+   234→
+   235→export function LoadError({
+   236→  message = "We could not load this data.",
+   237→  onRetry,
+   238→}: {
+   239→  message?: string;
+   240→  onRetry?: () => void;
+   241→}) {
+   242→  return (
+   243→    <div className="p-4 sm:p-5">
+   244→      <EmptyState
+   245→        icon={<AlertTriangle className="size-6" aria-hidden="true" />}
+   246→        title="Something went wrong"
+   247→        description={message}
+   248→        action={
+   249→          onRetry ? (
+   250→            <Button variant="outline" onClick={onRetry}>
+   251→              Try again
+   252→            </Button>
+   253→          ) : undefined
+   254→        }
+   255→      />
+   256→    </div>
+   257→  );
+   258→}
+   259→
+   260→// ------------------------------------------------------------
+   261→// Filters
+   262→// ------------------------------------------------------------
+   263→
+   264→export function ChipBar({
+   265→  options,
+   266→  value,
+   267→  onChange,
+   268→  className,
+   269→  ariaLabel = "Filter results",
+   270→}: {
+   271→  options: { value: string; label: string }[];
+   272→  value: string;
+   273→  onChange: (value: string) => void;
+   274→  className?: string;
+   275→  ariaLabel?: string;
+   276→}) {
+   277→  return (
+   278→    <div className={cn("flex flex-wrap items-center gap-2", className)} aria-label={ariaLabel}>
+   279→      {options.map((option) => {
+   280→        const active = value === option.value;
+   281→        return (
+   282→          <button
+   283→            key={option.value}
+   284→            type="button"
+   285→            aria-pressed={active}
+   286→            onClick={() => onChange(option.value)}
+   287→            className={cn(
+   288→              "inline-flex h-9 items-center rounded-full border px-3.5 text-sm font-medium transition-colors",
+   289→              active
+   290→                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+   291→                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+   292→            )}
+   293→          >
+   294→            {option.label}
+   295→          </button>
+   296→        );
+   297→      })}
+   298→    </div>
+   299→  );
+   300→}
+   301→
+   302→export function FilterBar({
+   303→  search,
+   304→  onSearchChange,
+   305→  placeholder = "Search…",
+   306→  ariaLabel,
+   307→  children,
+   308→}: {
+   309→  search: string;
+   310→  onSearchChange: (value: string) => void;
+   311→  placeholder?: string;
+   312→  ariaLabel?: string;
+   313→  children?: React.ReactNode;
+   314→}) {
+   315→  return (
+   316→    <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+   317→      <div className="relative w-full sm:max-w-xs">
+   318→        <Search
+   319→          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+   320→          aria-hidden="true"
+   321→        />
+   322→        <Input
+   323→          value={search}
+   324→          onChange={(e) => onSearchChange(e.target.value)}
+   325→          placeholder={placeholder}
+   326→          aria-label={ariaLabel ?? placeholder}
+   327→          className="pl-9"
+   328→        />
+   329→      </div>
+   330→      {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
+   331→    </div>
+   332→  );
+   333→}
+   334→
+   335→// ------------------------------------------------------------
+   336→// Table pager
+   337→// ------------------------------------------------------------
+   338→
+   339→export function TablePager({
+   340→  pagination,
+   341→  onPage,
+   342→  unit = "results",
+   343→}: {
+   344→  pagination: Pagination | null | undefined;
+   345→  onPage: (page: number) => void;
+   346→  unit?: string;
+   347→}) {
+   348→  if (!pagination || pagination.total === 0) return null;
+   349→  const { page, totalPages, total } = pagination;
+   350→
+   351→  if (totalPages <= 1) {
+   352→    return (
+   353→      <p className="border-t px-4 py-3 text-xs text-muted-foreground sm:px-5">
+   354→        {formatNumber(total)} {unit}
+   355→      </p>
+   356→    );
+   357→  }
+   358→
+   359→  const from = Math.max(1, page - 2);
+   360→  const to = Math.min(totalPages, page + 2);
+   361→  const pages: number[] = [];
+   362→  for (let p = from; p <= to; p++) pages.push(p);
+   363→
+   364→  return (
+   365→    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 sm:px-5">
+   366→      <p className="text-xs text-muted-foreground">
+   367→        Page {page} of {totalPages} · {formatNumber(total)} {unit}
+   368→      </p>
+   369→      <div className="flex items-center gap-1">
+   370→        <Button
+   371→          variant="outline"
+   372→          size="sm"
+   373→          disabled={page <= 1}
+   374→          onClick={() => onPage(page - 1)}
+   375→          aria-label="Previous page"
+   376→        >
+   377→          <ChevronLeft className="size-4" aria-hidden="true" />
+   378→          Prev
+   379→        </Button>
+   380→        {pages.map((p) => (
+   381→          <Button
+   382→            key={p}
+   383→            variant={p === page ? "default" : "outline"}
+   384→            size="icon"
+   385→            className="size-8 text-xs"
+   386→            onClick={() => onPage(p)}
+   387→            aria-label={`Page ${p}`}
+   388→            aria-current={p === page ? "page" : undefined}
+   389→          >
+   390→            {p}
+   391→          </Button>
+   392→        ))}
+   393→        <Button
+   394→          variant="outline"
+   395→          size="sm"
+   396→          disabled={page >= totalPages}
+   397→          onClick={() => onPage(page + 1)}
+   398→          aria-label="Next page"
+   399→        >
+   400→          Next
+   401→          <ChevronRight className="size-4" aria-hidden="true" />
+   402→        </Button>
+   403→      </div>
+   404→    </div>
+   405→  );
+   406→}
+   407→
+   408→// ------------------------------------------------------------
+   409→// Small presentational atoms
+   410→// ------------------------------------------------------------
+   411→
+   412→export function CountBar({
+   413→  label,
+   414→  value,
+   415→  max,
+   416→  barClassName,
+   417→}: {
+   418→  label: string;
+   419→  value: number;
+   420→  max: number;
+   421→  barClassName?: string;
+   422→}) {
+   423→  const pct = max > 0 ? Math.max(3, Math.min(100, Math.round((value / max) * 100))) : 0;
+   424→  return (
+   425→    <div>
+   426→      <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
+   427→        <span className="truncate text-foreground">{label}</span>
+   428→        <span className="font-medium tabular-nums text-muted-foreground">{formatNumber(value)}</span>
+   429→      </div>
+   430→      <div className="h-1.5 overflow-hidden rounded-full bg-muted" role="presentation">
+   431→        <div
+   432→          className={cn("h-full rounded-full bg-primary/75", barClassName)}
+   433→          style={{ width: `${pct}%` }}
+   434→        />
+   435→      </div>
+   436→    </div>
+   437→  );
+   438→}
+   439→
+   440→export function ImgThumb({
+   441→  src,
+   442→  alt,
+   443→  className,
+   444→}: {
+   445→  src: string | null | undefined;
+   446→  alt: string;
+   447→  className?: string;
+   448→}) {
+   449→  return (
+   450→    <div
+   451→      className={cn(
+   452→        "grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-muted text-muted-foreground",
+   453→        className
+   454→      )}
+   455→    >
+   456→      {src ? (
+   457→        <img src={src} alt={alt} loading="lazy" className="size-full object-cover" />
+   458→      ) : (
+   459→        <MapPin className="size-4" aria-hidden="true" />
+   460→      )}
+   461→    </div>
+   462→  );
+   463→}
+   464→
+   465→export function AvatarInitials({ name, className }: { name: string; className?: string }) {
+   466→  return (
+   467→    <div
+   468→      aria-hidden="true"
+   469→      className={cn(
+   470→        "grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary",
+   471→        className
+   472→      )}
+   473→    >
+   474→      {initials(name)}
+   475→    </div>
+   476→  );
+   477→}
+   478→
+   479→const ROLE_TONES: Record<string, string> = {
+   480→  BUYER: "bg-stone-100 text-stone-700",
+   481→  SELLER: "bg-teal-100 text-teal-800",
+   482→  BUILDER: "bg-emerald-100 text-emerald-800",
+   483→  ADMIN: "bg-amber-100 text-amber-800",
+   484→};
+   485→
+   486→export function RoleBadge({ role, className }: { role: string; className?: string }) {
+   487→  return (
+   488→    <span
+   489→      className={cn(
+   490→        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
+   491→        ROLE_TONES[role] ?? "bg-stone-100 text-stone-700",
+   492→        className
+   493→      )}
+   494→    >
+   495→      {ROLE_LABELS[role] ?? role}
+   496→    </span>
+   497→  );
+   498→}
+   499→
+   500→// ------------------------------------------------------------
+   501→// Reschedule dialog + visits board (shared by both dashboards)
+   502→// ------------------------------------------------------------
+   503→
+   504→export function RescheduleVisitDialog({
+   505→  visit,
+   506→  onClose,
+   507→  onDone,
+   508→}: {
+   509→  visit: SiteVisitDTO;
+   510→  onClose: () => void;
+   511→  onDone: () => void;
+   512→}) {
+   513→  const [date, setDate] = useState(visit.preferredDate ? visit.preferredDate.slice(0, 10) : "");
+   514→  const [time, setTime] = useState(visit.preferredTime ?? "");
+   515→  const [busy, setBusy] = useState(false);
+   516→  const [error, setError] = useState<string | null>(null);
+   517→
+   518→  async function submit() {
+   519→    if (!date) {
+   520→      setError("Pick a new date for the visit.");
+   521→      return;
+   522→    }
+   523→    setBusy(true);
+   524→    setError(null);
+   525→    try {
+   526→      await api(`/api/site-visits/${visit.id}`, {
+   527→        method: "PATCH",
+   528→        body: JSON.stringify({
+   529→          status: "RESCHEDULED",
+   530→          preferredDate: date,
+   531→          preferredTime: time || undefined,
+   532→        }),
+   533→      });
+   534→      toast.success("Visit rescheduled", {
+   535→        description: `${visit.property.title} — ${formatDate(date)}${time ? ` at ${time}` : ""}`,
+   536→      });
+   537→      onClose();
+   538→      onDone();
+   539→    } catch (err) {
+   540→      setError(err instanceof ApiError ? err.message : "Could not reschedule the visit.");
+   541→    } finally {
+   542→      setBusy(false);
+   543→    }
+   544→  }
+   545→
+   546→  return (
+   547→    <Dialog open onOpenChange={(open) => !open && onClose()}>
+   548→      <DialogContent className="sm:max-w-md">
+   549→        <DialogHeader>
+   550→          <DialogTitle>Reschedule site visit</DialogTitle>
+   551→          <DialogDescription>
+   552→            {visit.property.title} — currently {formatDate(visit.preferredDate)} at{" "}
+   553→            {visit.preferredTime}
+   554→          </DialogDescription>
+   555→        </DialogHeader>
+   556→        <div className="grid gap-4">
+   557→          <div className="grid gap-2">
+   558→            <Label htmlFor="visit-date">New date</Label>
+   559→            <Input
+   560→              id="visit-date"
+   561→              type="date"
+   562→              value={date}
+   563→              onChange={(e) => {
+   564→                setDate(e.target.value);
+   565→                setError(null);
+   566→              }}
+   567→            />
+   568→          </div>
+   569→          <div className="grid gap-2">
+   570→            <Label htmlFor="visit-time">New time slot</Label>
+   571→            <Select value={time} onValueChange={setTime}>
+   572→              <SelectTrigger id="visit-time" className="w-full">
+   573→                <SelectValue placeholder="Select a time slot" />
+   574→              </SelectTrigger>
+   575→              <SelectContent>
+   576→                {VISIT_TIME_SLOTS.map((slot) => (
+   577→                  <SelectItem key={slot} value={slot}>
+   578→                    {slot}
+   579→                  </SelectItem>
+   580→                ))}
+   581→              </SelectContent>
+   582→            </Select>
+   583→          </div>
+   584→          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+   585→        </div>
+   586→        <DialogFooter>
+   587→          <Button variant="outline" onClick={onClose}>
+   588→            Cancel
+   589→          </Button>
+   590→          <Button onClick={submit} disabled={busy}>
+   591→            <CalendarClock className="size-4" aria-hidden="true" />
+   592→            Reschedule visit
+   593→          </Button>
+   594→        </DialogFooter>
+   595→      </DialogContent>
+   596→    </Dialog>
+   597→  );
+   598→}
+   599→
+   600→function VisitCard({
+   601→  visit,
+   602→  busy,
+   603→  onStatus,
+   604→  onReschedule,
+   605→}: {
+   606→  visit: SiteVisitDTO;
+   607→  busy: boolean;
+   608→  onStatus: (visit: SiteVisitDTO, status: string, success: string, description?: string) => void;
+   609→  onReschedule: (visit: SiteVisitDTO) => void;
+   610→}) {
+   611→  const status = visit.status;
+   612→  const canConfirm = status === "REQUESTED";
+   613→  const canReschedule = ["REQUESTED", "CONFIRMED", "RESCHEDULED"].includes(status);
+   614→  const canComplete = ["CONFIRMED", "RESCHEDULED"].includes(status);
+   615→  const canCancel = ["REQUESTED", "CONFIRMED", "RESCHEDULED"].includes(status);
+   616→
+   617→  return (
+   618→    <article className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
+   619→      <div className="flex items-start gap-3 p-4">
+   620→        <ImgThumb src={visit.property.mainImage} alt="" className="size-12 rounded-lg" />
+   621→        <div className="min-w-0 flex-1">
+   622→          <h3 className="truncate text-sm font-medium text-foreground">{visit.property.title}</h3>
+   623→          <p className="truncate text-xs text-muted-foreground">
+   624→            {visit.property.locality}, {visit.property.city}
+   625→          </p>
+   626→        </div>
+   627→        <StatusBadge status={status} />
+   628→      </div>
+   629→      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 border-t px-4 py-3 text-xs">
+   630→        <div>
+   631→          <dt className="text-muted-foreground">Visitor</dt>
+   632→          <dd className="mt-0.5 font-medium text-foreground">{visit.contactName}</dd>
+   633→        </div>
+   634→        <div>
+   635→          <dt className="text-muted-foreground">Contact</dt>
+   636→          <dd className="mt-0.5 font-medium">
+   637→            <a href={`tel:${visit.contactPhone}`} className="text-primary hover:underline">
+   638→              {visit.contactPhone}
+   639→            </a>
+   640→          </dd>
+   641→        </div>
+   642→        <div>
+   643→          <dt className="text-muted-foreground">Date</dt>
+   644→          <dd className="mt-0.5 font-medium text-foreground">{formatDate(visit.preferredDate)}</dd>
+   645→        </div>
+   646→        <div>
+   647→          <dt className="text-muted-foreground">Time</dt>
+   648→          <dd className="mt-0.5 font-medium text-foreground">{visit.preferredTime}</dd>
+   649→        </div>
+   650→        {visit.notes ? (
+   651→          <div className="col-span-2">
+   652→            <dt className="text-muted-foreground">Notes</dt>
+   653→            <dd className="mt-0.5 text-foreground">{visit.notes}</dd>
+   654→          </div>
+   655→        ) : null}
+   656→      </dl>
+   657→      {canConfirm || canReschedule || canComplete || canCancel ? (
+   658→        <div className="mt-auto flex flex-wrap gap-2 border-t px-4 py-3">
+   659→          {canConfirm ? (
+   660→            <Button
+   661→              size="sm"
+   662→              disabled={busy}
+   663→              onClick={() =>
+   664→                onStatus(
+   665→                  visit,
+   666→                  "CONFIRMED",
+   667→                  "Visit confirmed",
+   668→                  `${formatDate(visit.preferredDate)} at ${visit.preferredTime}`
+   669→                )
+   670→              }
+   671→            >
+   672→              <Check className="size-4" aria-hidden="true" />
+   673→              Confirm
+   674→            </Button>
+   675→          ) : null}
+   676→          {canReschedule ? (
+   677→            <Button size="sm" variant="outline" disabled={busy} onClick={() => onReschedule(visit)}>
+   678→              <CalendarClock className="size-4" aria-hidden="true" />
+   679→              Reschedule
+   680→            </Button>
+   681→          ) : null}
+   682→          {canComplete ? (
+   683→            <Button
+   684→              size="sm"
+   685→              variant="outline"
+   686→              disabled={busy}
+   687→              onClick={() => onStatus(visit, "COMPLETED", "Visit marked completed", visit.property.title)}
+   688→            >
+   689→              <CheckCircle2 className="size-4" aria-hidden="true" />
+   690→              Complete
+   691→            </Button>
+   692→          ) : null}
+   693→          {canCancel ? (
+   694→            <Button
+   695→              size="sm"
+   696→              variant="ghost"
+   697→              disabled={busy}
+   698→              className="text-rose-600 hover:text-rose-700"
+   699→              onClick={() => onStatus(visit, "CANCELLED", "Visit cancelled", visit.property.title)}
+   700→            >
+   701→              <X className="size-4" aria-hidden="true" />
+   702→              Cancel
+   703→            </Button>
+   704→          ) : null}
+   705→        </div>
+   706→      ) : null}
+   707→    </article>
+   708→  );
+   709→}
+   710→
+   711→export function VisitsBoard({
+   712→  title = "Site visits",
+   713→  description,
+   714→}: {
+   715→  title?: string;
+   716→  description?: string;
+   717→}) {
+   718→  const [status, setStatus] = useState("ALL");
+   719→  const [page, setPage] = useState(1);
+   720→  const [busyId, setBusyId] = useState<string | null>(null);
+   721→  const [rescheduling, setRescheduling] = useState<SiteVisitDTO | null>(null);
+   722→
+   723→  const { data, loading, error, refetch } = useApiData<{ data: SiteVisitDTO[]; pagination?: Pagination }>(
+   724→    () => api(`/api/site-visits${qs({ status: status !== "ALL" ? status : null, page, pageSize: 12 })}`),
+   725→    [status, page]
+   726→  );
+   727→
+   728→  function onStatusChange(next: string) {
+   729→    setStatus(next);
+   730→    setPage(1);
+   731→  }
+   732→
+   733→  async function onStatus(
+   734→    visit: SiteVisitDTO,
+   735→    nextStatus: string,
+   736→    success: string,
+   737→    description?: string
+   738→  ) {
+   739→    setBusyId(visit.id);
+   740→    await runAction(
+   741→      () =>
+   742→        api(`/api/site-visits/${visit.id}`, {
+   743→          method: "PATCH",
+   744→          body: JSON.stringify({ status: nextStatus }),
+   745→        }),
+   746→      success,
+   747→      { description, onDone: refetch }
+   748→    );
+   749→    setBusyId(null);
+   750→  }
+   751→
+   752→  const visits = data?.data ?? [];
+   753→
+   754→  return (
+   755→    <div className="space-y-4">
+   756→      <TabIntro eyebrow="Site visits" title={title} description={description} />
+   757→      <ChipBar
+   758→        value={status}
+   759→        onChange={onStatusChange}
+   760→        options={[
+   761→          { value: "ALL", label: "All" },
+   762→          ...VISIT_STATUSES.map((s) => ({ value: s.value, label: s.label })),
+   763→        ]}
+   764→      />
+   765→      {loading ? (
+   766→        <SkeletonCards count={6} />
+   767→      ) : error ? (
+   768→        <AdminCard>
+   769→          <LoadError message={error} onRetry={refetch} />
+   770→        </AdminCard>
+   771→      ) : visits.length === 0 ? (
+   772→        <EmptyState
+   773→          icon={<CalendarDays className="size-6" aria-hidden="true" />}
+   774→          title="No site visits found"
+   775→          description={
+   776→            status === "ALL"
+   777→              ? "When buyers request a property visit, it will appear here for you to coordinate."
+   778→              : `No visits with status "${VISIT_STATUSES.find((s) => s.value === status)?.label ?? status}".`
+   779→          }
+   780→        />
+   781→      ) : (
+   782→        <div className="space-y-4">
+   783→          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   784→            {visits.map((visit) => (
+   785→              <VisitCard
+   786→                key={visit.id}
+   787→                visit={visit}
+   788→                busy={busyId === visit.id}
+   789→                onStatus={onStatus}
+   790→                onReschedule={setRescheduling}
+   791→              />
+   792→            ))}
+   793→          </div>
+   794→          <AdminCard>
+   795→            <TablePager pagination={data?.pagination} onPage={setPage} unit="visits" />
+   796→          </AdminCard>
+   797→        </div>
+   798→      )}
+   799→      {rescheduling ? (
+   800→        <RescheduleVisitDialog
+   801→          key={rescheduling.id}
+   802→          visit={rescheduling}
+   803→          onClose={() => setRescheduling(null)}
+   804→          onDone={refetch}
+   805→        />
+   806→      ) : null}
+   807→    </div>
+   808→  );
+   809→}
+   810→

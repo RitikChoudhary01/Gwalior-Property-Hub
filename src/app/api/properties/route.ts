@@ -146,8 +146,14 @@ export async function POST(req: Request) {
 
     // builders may only list under their own company; admins may specify a builder
     let builderId: string | null = null;
-    if (user.role === "BUILDER" && user.builderProfile) builderId = user.builderProfile.id;
-    else if (user.role === "ADMIN" && body.projectId) {
+    if (user.role === "BUILDER") {
+      if (!user.builderProfile) return fail("Builder profile missing. Please contact support.", 400);
+      // builder accounts require admin approval before listing inventory
+      if (!user.builderProfile.isVerified) {
+        return fail("Your builder account is awaiting admin approval. You will be notified once verified.", 403);
+      }
+      builderId = user.builderProfile.id;
+    } else if (user.role === "ADMIN" && body.projectId) {
       const project = await db.project.findUnique({ where: { id: body.projectId } });
       builderId = project?.builderId ?? null;
     }

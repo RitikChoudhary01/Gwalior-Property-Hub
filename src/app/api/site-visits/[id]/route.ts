@@ -26,7 +26,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const visit = await db.siteVisit.findUnique({
       where: { id },
-      include: { property: { select: { sellerId: true, builderId: true, title: true } } },
+      include: { property: { select: { sellerId: true, builderId: true, title: true } }, lead: { select: { assignedToId: true } } },
     });
     if (!visit) return fail("Visit not found.", 404);
 
@@ -35,8 +35,9 @@ export async function PATCH(req: Request, { params }: Params) {
       visit.property.sellerId === user.id ||
       (!!user.builderProfile && visit.property.builderId === user.builderProfile.id);
     const isBuyer = visit.buyerId === user.id;
+    const isAssignedTeam = user.role === "TEAM" && visit.lead?.assignedToId === user.id;
 
-    if (!isAdmin && !isListingOwner && !isBuyer) return fail("Not allowed.", 403);
+    if (!isAdmin && !isListingOwner && !isBuyer && !isAssignedTeam) return fail("Not allowed.", 403);
 
     const body = await parseBody(req, patchSchema);
 
@@ -62,7 +63,7 @@ export async function PATCH(req: Request, { params }: Params) {
       include: visitInclude,
     });
 
-    if (isListingOwner || isAdmin) {
+    if (isListingOwner || isAdmin || isAssignedTeam) {
       await audit(user.id, "SITE_VISIT_UPDATED", "VISIT", visit.id, `Status → ${updated.status}`);
     }
 

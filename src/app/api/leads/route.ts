@@ -133,6 +133,9 @@ export async function GET(req: Request) {
 
     if (user.role === "ADMIN") {
       if (sp.get("assignedTo") === "me") where.assignedToId = user.id;
+    } else if (user.role === "TEAM") {
+      // team members only ever see leads assigned to them
+      where.assignedToId = user.id;
     } else if (user.role === "BUYER") {
       where.buyerId = user.id;
     } else if (user.role === "SELLER") {

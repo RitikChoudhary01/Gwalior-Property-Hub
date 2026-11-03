@@ -58,7 +58,8 @@ export async function GET(_req: Request, { params }: Params) {
     const isAdmin = user.role === "ADMIN";
     const isOwner = lead.property.sellerId === user.id || (user.builderProfile && lead.property.builderId === user.builderProfile.id);
     const isBuyer = lead.buyerId === user.id;
-    if (!isAdmin && !isOwner && !isBuyer) return fail("Not allowed.", 403);
+    const isAssignedTeam = user.role === "TEAM" && lead.assignedToId === user.id;
+    if (!isAdmin && !isOwner && !isBuyer && !isAssignedTeam) return fail("Not allowed.", 403);
 
     const [activities, visits] = await Promise.all([
       db.leadActivity.findMany({
@@ -99,20 +100,23 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const lead = await db.lead.findUnique({
       where: { id },
-      include: { property: { select: { sellerId: true, builderId: true, title: true } } },
+      include: { property: { select: { sellerId: true, builderId: true, title: true } }, assignedTo: { select: { id: true, name: true } } },
     });
     if (!lead) return fail("Lead not found.", 404);
 
     const isAdmin = user.role === "ADMIN";
     const isOwner = lead.property.sellerId === user.id || (user.builderProfile && lead.property.builderId === user.builderProfile.id);
-    if (!isAdmin && !isOwner) return fail("Not allowed.", 403);
+    const isAssignedTeam = user.role === "TEAM" && lead.assignedToId === user.id;
+    if (!isAdmin && !isOwner && !isAssignedTeam) return fail("Not allowed.", 403);
 
     const body = await parseBody(req, patchSchema);
     const data: Record<string, unknown> = {};
     const activityCreates: { type: string; note: string; userId: string | null }[] = [];
 
     if (body.status) {
-      if (!isAdmin && !(OWNER_ALLOWED_STATUSES as readonly string[]).includes(body.status)) {
+      const ownerAllowed = (OWNER_ALLOWED_STATUSES as readonly string[]).includes(body.status);
+      const teamAllowed = true; // team members manage operational lead statuses on their assigned leads
+      if (!isAdmin && !ownerAllowed && !(isAssignedTeam && teamAllowed)) {
         return fail("Listing owners can only mark leads as Contacted or Lost.", 403);
       }
       if (body.status !== lead.status) {
@@ -139,7 +143,7 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     if (body.followUpDate !== undefined) {
-      if (!isAdmin) return fail("Only administrators can set follow-ups.", 403);
+      if (!isAdmin && user.role !== "TEAM") return fail("Only administrators can set follow-ups.", 403);
       data.followUpDate = body.followUpDate ? new Date(body.followUpDate) : null;
     }
 

@@ -85,6 +85,10 @@ export async function POST(req: Request) {
     let builderId: string | null = null;
     if (user.role === "BUILDER") {
       if (!user.builderProfile) return fail("Builder profile missing. Please contact support.", 400);
+      // builder accounts require admin approval before they can publish projects
+      if (!user.builderProfile.isVerified) {
+        return fail("Your builder account is awaiting admin approval. You will be notified once verified.", 403);
+      }
       builderId = user.builderProfile.id;
     } else {
       // admin must supply builderId through header? keep admin simple: use first builder? No — admins create via builder accounts.

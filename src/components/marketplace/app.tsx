@@ -19,6 +19,7 @@ import { ContactView } from "./views/contact-view";
 import { LegalView } from "./views/legal-view";
 import { LoginView } from "./views/login-view";
 import { RegisterView } from "./views/register-view";
+import { TeamActivateView } from "./views/team-activate-view";
 import { ListPropertyView } from "./views/list-property-view";
 import { PartnerView } from "./views/partner-view";
 import { DashboardView } from "./views/dashboard/dashboard-view";
@@ -76,6 +77,8 @@ function RouteView() {
       return <LoginView />;
     case "register":
       return <RegisterView />;
+    case "team-activate":
+      return <TeamActivateView />;
     case "list-property":
       return <ListPropertyView />;
     case "partner":

@@ -2,7 +2,7 @@
 // Shared API types — used by API routes and client components
 // ============================================================
 
-export type Role = "BUYER" | "SELLER" | "BUILDER" | "ADMIN";
+export type Role = "BUYER" | "SELLER" | "BUILDER" | "TEAM" | "ADMIN";
 
 export interface AuthUser {
   id: string;
@@ -294,6 +294,45 @@ export interface AdminUserDTO {
   createdAt: string;
   builderProfile: { id: string; companyName: string; isVerified: boolean } | null;
   _count?: { properties: number; projects: number; leads: number };
+}
+
+// Internal team member row (admin Team Management tab)
+export interface TeamMemberDTO {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  city: string | null;
+  isActive: boolean;
+  invitePending: boolean; // true while the invite awaits activation
+  inviteToken: string | null; // exposed to ADMIN only, for copying the link
+  createdAt: string;
+  _count: { assignedLeads: number; openLeads: number; convertedLeads: number };
+}
+
+// Team dashboard overview payload (/api/team/overview)
+export interface TeamOverviewDTO {
+  stats: {
+    assigned: number;
+    open: number;
+    dueFollowUps: number;
+    upcomingVisits: number;
+  };
+  pipeline: { status: string; count: number }[];
+  followUps: LeadDTO[];
+  tasks: TeamTaskDTO[];
+  activities: (LeadActivityDTO & { lead: { id: string; reference: string; name: string; propertyTitle: string } | null })[];
+}
+
+export interface TeamTaskDTO {
+  id: string;
+  kind: "FOLLOW_UP_DUE" | "FOLLOW_UP_TODAY" | "NEW_UNCONTACTED" | "VISIT_TO_CONFIRM" | "VISIT_UPCOMING";
+  title: string;
+  detail: string;
+  due: string | null; // ISO date when relevant
+  leadId: string | null;
+  visitId: string | null;
+  propertyTitle: string;
 }
 
 export interface AuditLogDTO {

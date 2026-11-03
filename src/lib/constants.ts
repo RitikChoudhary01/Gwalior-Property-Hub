@@ -8,6 +8,7 @@ export const ROLES = {
   BUYER: "BUYER",
   SELLER: "SELLER",
   BUILDER: "BUILDER",
+  TEAM: "TEAM",
   ADMIN: "ADMIN",
 } as const;
 
@@ -17,6 +18,7 @@ export const ROLE_LABELS: Record<string, string> = {
   BUYER: "Buyer",
   SELLER: "Property Owner",
   BUILDER: "Builder / Developer",
+  TEAM: "Team Member",
   ADMIN: "Administrator",
 };
 

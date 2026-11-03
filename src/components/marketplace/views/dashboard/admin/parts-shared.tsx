@@ -480,6 +480,7 @@ const ROLE_TONES: Record<string, string> = {
   BUYER: "bg-stone-100 text-stone-700",
   SELLER: "bg-teal-100 text-teal-800",
   BUILDER: "bg-emerald-100 text-emerald-800",
+  TEAM: "bg-cyan-100 text-cyan-800",
   ADMIN: "bg-amber-100 text-amber-800",
 };
 

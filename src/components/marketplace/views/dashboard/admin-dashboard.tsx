@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Receipt,
   Users,
+  UsersRound,
   Wallet,
 } from "lucide-react";
 import { useAppStore } from "@/store/use-app-store";
@@ -24,6 +25,7 @@ import { formatMonthYear } from "@/lib/format";
 import { AvatarInitials, useDashboardTab, VisitsBoard } from "./admin/parts-shared";
 import { AdminOverview } from "./admin/parts-overview";
 import { AdminUsers } from "./admin/parts-users";
+import { AdminTeam } from "./admin/parts-team";
 import { AdminProperties, AdminProjects } from "./admin/parts-moderation";
 import { AdminLeads } from "./admin/parts-leads";
 import { AdminTransactions, AdminCommissions, AdminAgreements } from "./admin/parts-finance";
@@ -32,6 +34,7 @@ import { AdminAuditLog } from "./admin/parts-audit";
 const ADMIN_TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "users", label: "Users", icon: Users },
+  { id: "team", label: "Team", icon: UsersRound },
   { id: "properties", label: "Properties", icon: Home },
   { id: "projects", label: "Projects", icon: Building2 },
   { id: "leads", label: "Leads CRM", icon: Inbox },
@@ -133,6 +136,7 @@ export function AdminDashboard({ initialTab }: { initialTab?: string }) {
 
           {tab === "overview" ? <AdminOverview onNavigate={selectTab} /> : null}
           {tab === "users" ? <AdminUsers /> : null}
+          {tab === "team" ? <AdminTeam /> : null}
           {tab === "properties" ? <AdminProperties /> : null}
           {tab === "projects" ? <AdminProjects /> : null}
           {tab === "leads" ? <AdminLeads /> : null}

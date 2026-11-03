@@ -21,11 +21,12 @@ model User {
   passwordHash String
   name         String
   phone        String?
-  role         String // BUYER | SELLER | BUILDER | ADMIN
+  role         String // BUYER | SELLER | BUILDER | TEAM | ADMIN
   avatarUrl    String?
   city         String?
   isVerified   Boolean   @default(false) // seller identity verification
   isActive     Boolean   @default(true)
+  inviteToken  String?   @unique // non-null while a TEAM invite awaits activation
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

@@ -18,6 +18,8 @@ const createSchema = z.object({
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Select a valid date"),
   preferredTime: z.string().refine((t) => VISIT_TIME_SLOTS.includes(t), "Select a valid time slot"),
   notes: z.string().trim().max(500).optional(),
+  // team/admin scheduling on behalf of an assigned lead
+  leadId: z.string().min(1).optional(),
 });
 
 export async function POST(req: Request) {
@@ -33,6 +35,66 @@ export async function POST(req: Request) {
       return fail("Preferred date must be today or later.", 422);
     }
 
+    const user = await getSessionUser();
+
+    // ---- team / admin scheduling a visit for an assigned lead ----
+    if (body.leadId) {
+      if (!user || (user.role !== "TEAM" && user.role !== "ADMIN")) {
+        return fail("Not allowed.", 403);
+      }
+      const lead = await db.lead.findUnique({
+        where: { id: body.leadId },
+        include: { property: { select: { id: true, title: true, slug: true } } },
+      });
+      if (!lead) return fail("Lead not found.", 404);
+      if (user.role === "TEAM" && lead.assignedToId !== user.id) {
+        return fail("You can only schedule visits for leads assigned to you.", 403);
+      }
+      if (lead.property.id !== body.propertyId) {
+        return fail("This lead is not for the selected property.", 422);
+      }
+
+      const visit = await db.siteVisit.create({
+        data: {
+          propertyId: lead.propertyId,
+          buyerId: lead.buyerId,
+          leadId: lead.id,
+          preferredDate: date,
+          preferredTime: body.preferredTime,
+          contactName: body.contactName || lead.name,
+          contactPhone: body.contactPhone || lead.phone,
+          notes: body.notes ?? null,
+          status: "CONFIRMED", // arranged directly with the buyer
+        },
+        include: visitInclude,
+      });
+
+      await db.leadActivity.create({
+        data: {
+          leadId: lead.id,
+          userId: user.id,
+          type: "VISIT" as const,
+          note: `Site visit scheduled for ${body.preferredDate} at ${body.preferredTime} with ${visit.contactName}.`,
+        },
+      });
+      await db.lead.update({
+        where: { id: lead.id },
+        data: { status: "SITE_VISIT_SCHEDULED", lastContactedAt: new Date() },
+      });
+      if (lead.buyerId) {
+        await notify({
+          userId: lead.buyerId,
+          title: "Site visit scheduled",
+          message: `A Vasati advisor scheduled your visit to "${lead.property.title}" on ${body.preferredDate} at ${body.preferredTime}.`,
+          type: "VISIT",
+          link: "#/dashboard?tab=visits",
+        });
+      }
+
+      return ok({ id: visit.id }, 201);
+    }
+
+    // ---- public / buyer visit request ----
     const property = await db.property.findUnique({
       where: { id: body.propertyId },
       include: { seller: true, builder: true },
@@ -41,7 +103,6 @@ export async function POST(req: Request) {
       return fail("This property is not accepting visit requests.", 404);
     }
 
-    const user = await getSessionUser();
     const buyerId = user?.role === "BUYER" ? user.id : null;
 
     // link to an existing lead by phone, if any
@@ -115,6 +176,9 @@ export async function GET(req: Request) {
 
     if (user.role === "ADMIN") {
       // all
+    } else if (user.role === "TEAM") {
+      // team members coordinate visits for their assigned leads
+      where.lead = { assignedToId: user.id };
     } else if (user.role === "BUYER") {
       where.buyerId = user.id;
     } else if (user.role === "SELLER") {

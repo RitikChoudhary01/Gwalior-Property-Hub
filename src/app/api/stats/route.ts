@@ -87,6 +87,32 @@ export async function GET() {
       });
     }
 
+    if (user.role === "TEAM") {
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      const [assigned, open, dueFollowUps, upcomingVisits] = await Promise.all([
+        db.lead.count({ where: { assignedToId: user.id } }),
+        db.lead.count({
+          where: { assignedToId: user.id, status: { notIn: ["CONVERTED", "LOST"] } },
+        }),
+        db.lead.count({
+          where: {
+            assignedToId: user.id,
+            followUpDate: { lte: endOfToday },
+            status: { notIn: ["CONVERTED", "LOST"] },
+          },
+        }),
+        db.siteVisit.count({
+          where: {
+            lead: { assignedToId: user.id },
+            status: { in: ["REQUESTED", "CONFIRMED", "RESCHEDULED"] },
+            preferredDate: { gte: new Date() },
+          },
+        }),
+      ]);
+      return ok({ assigned, open, dueFollowUps, upcomingVisits });
+    }
+
     // ADMIN → redirect consumers to /api/admin/stats
     return ok({ useAdminStats: true });
   });

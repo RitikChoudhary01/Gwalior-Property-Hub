@@ -1,10 +1,11 @@
 "use client";
 
 // ============================================================
-// Dashboard shell — role guard + delegation to the four
-// role dashboards (buyer / seller / builder / admin).
-// Each dashboard manages its own tab navigation and reads
-// the initial tab from the ?tab= query parameter.
+// Dashboard shell — the signed-in user's role decides which
+// dashboard renders. Each role dashboard manages its own tabs,
+// and the APIs behind every tab enforce the same role scoping
+// server-side, so manually entering another dashboard's tab URL
+// neither renders foreign UI nor returns foreign data.
 // ============================================================
 
 import { useEffect } from "react";
@@ -13,6 +14,7 @@ import { useAppStore } from "@/store/use-app-store";
 import { BuyerDashboard } from "./buyer-dashboard";
 import { SellerDashboard } from "./seller-dashboard";
 import { BuilderDashboard } from "./builder-dashboard";
+import { TeamDashboard } from "./team-dashboard";
 import { AdminDashboard } from "./admin-dashboard";
 import { EmptyState } from "../../shared/section";
 import { Button } from "@/components/ui/button";
@@ -55,6 +57,8 @@ export function DashboardView() {
       return <SellerDashboard initialTab={initialTab} />;
     case "BUILDER":
       return <BuilderDashboard initialTab={initialTab} />;
+    case "TEAM":
+      return <TeamDashboard initialTab={initialTab} />;
     case "ADMIN":
       return <AdminDashboard initialTab={initialTab} />;
     default:

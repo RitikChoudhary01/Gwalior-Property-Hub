@@ -13,6 +13,7 @@ CREATE TABLE "User" (
     "city" TEXT,
     "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "inviteToken" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -381,6 +382,9 @@ CREATE TABLE "Setting" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_inviteToken_key" ON "User"("inviteToken");
 
 -- CreateIndex
 CREATE INDEX "User_role_idx" ON "User"("role");

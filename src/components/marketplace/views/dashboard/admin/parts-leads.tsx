@@ -109,6 +109,24 @@ function LeadDetailDialog({
   const [note, setNote] = useState("");
   const [followUp, setFollowUp] = useState("");
   const [busy, setBusy] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<{ id: string; name: string }[]>([]);
+
+  // active team members for lead assignment
+  useEffect(() => {
+    let cancelled = false;
+    api<{ data: { id: string; name: string; isActive: boolean; invitePending: boolean }[] }>("/api/admin/team")
+      .then((res) => {
+        if (!cancelled) {
+          setTeamMembers(
+            res.data.filter((m) => m.isActive && !m.invitePending).map((m) => ({ id: m.id, name: m.name }))
+          );
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -311,19 +329,44 @@ function LeadDetailDialog({
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="lead-owner" className="text-xs text-muted-foreground">
+                      Lead owner
+                    </Label>
+                    <Select
+                      value={lead.assignedTo?.id ?? "unassigned"}
+                      onValueChange={(v) =>
+                        patch(
+                          { assignedToId: v === "unassigned" ? null : v },
+                          v === "unassigned" ? "Lead unassigned" : "Lead assigned",
+                          teamMembers.find((m) => m.id === v)?.name ?? user?.name
+                        )
+                      }
+                      disabled={busy}
+                    >
+                      <SelectTrigger id="lead-owner" className="w-[220px]" aria-label="Assign lead owner">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {user ? (
+                          <SelectItem value={user.id}>Me ({user.name})</SelectItem>
+                        ) : null}
+                        {teamMembers
+                          .filter((m) => m.id !== user?.id)
+                          .map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} · Team
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={busy || lead.assignedTo?.id === user?.id}
-                    onClick={() => patch({ assignedToId: user?.id }, "Lead assigned to you")}
-                  >
-                    <UserPlus className="size-4" aria-hidden="true" />
-                    {lead.assignedTo?.id === user?.id ? "Assigned to you" : "Assign to me"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                    className="mt-5"
                     disabled={busy}
                     onClick={() => patch({ markContacted: true }, "Marked as contacted")}
                   >
@@ -331,11 +374,11 @@ function LeadDetailDialog({
                     Mark contacted
                   </Button>
                   {lead.assignedTo ? (
-                    <span className="inline-flex h-9 items-center rounded-full bg-accent px-3 text-xs font-medium text-accent-foreground">
+                    <span className="mt-5 inline-flex h-9 items-center rounded-full bg-accent px-3 text-xs font-medium text-accent-foreground">
                       Owner: {lead.assignedTo.name}
                     </span>
                   ) : (
-                    <span className="inline-flex h-9 items-center rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground">
+                    <span className="mt-5 inline-flex h-9 items-center rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground">
                       Unassigned
                     </span>
                   )}
