@@ -78,22 +78,26 @@ export async function POST(req: Request) {
       include: leadInclude,
     });
 
-    // notifications: admins + listing owner
+    // notifications: admins + listing owner (seller, or the builder
+    // behind the project when the unit has no individual seller)
+    const ownerUserId = property.sellerId ?? property.builder?.userId ?? null;
     await notifyAdmins({
       title: "New enquiry received",
       message: `${lead.name} enquired about "${property.title}" (${property.locality}, ${property.city}). Ref ${lead.reference}.`,
       type: "ENQUIRY",
       link: "#/dashboard?tab=leads",
     });
-    await notify({
-      userId: property.sellerId,
-      title: "New enquiry on your listing",
-      message: `${lead.name} enquired about "${property.title}". Ref ${lead.reference}.`,
-      type: "ENQUIRY",
-      link: "#/dashboard?tab=enquiries",
-    });
+    if (ownerUserId) {
+      await notify({
+        userId: ownerUserId,
+        title: "New enquiry on your listing",
+        message: `${lead.name} enquired about "${property.title}". Ref ${lead.reference}.`,
+        type: "ENQUIRY",
+        link: "#/dashboard?tab=enquiries",
+      });
+    }
     // external channels (skipped gracefully when not configured)
-    if (property.seller.email) {
+    if (property.seller?.email) {
       await sendEmail(property.seller.email, `New enquiry: ${property.title}`, `You have a new enquiry (ref ${lead.reference}) from ${lead.name}.`);
     }
 
