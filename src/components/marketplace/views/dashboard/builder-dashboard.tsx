@@ -26,6 +26,7 @@ import {
   Plus,
   Trash2,
   User,
+  Wallet,
   X,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api-client";
@@ -100,6 +101,7 @@ import {
   useApiData,
   useDashboardTab,
 } from "./admin/parts-shared";
+import { CommissionsTab } from "./commissions-tab";
 
 const BUILDER_TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -107,6 +109,7 @@ const BUILDER_TABS = [
   { id: "inventory", label: "Inventory", icon: Home },
   { id: "enquiries", label: "Enquiries", icon: Inbox },
   { id: "visits", label: "Site visits", icon: CalendarDays },
+  { id: "commissions", label: "Commissions", icon: Wallet },
   { id: "profile", label: "Company profile", icon: User },
 ] as const;
 
@@ -246,6 +249,7 @@ export function BuilderDashboard({ initialTab }: { initialTab?: string }) {
               description="Confirm, reschedule and complete property visits booked by buyers."
             />
           ) : null}
+          {tab === "commissions" ? <CommissionsTab partyLabel="Builder" /> : null}
           {tab === "profile" ? <BuilderProfileTab /> : null}
         </div>
       </div>

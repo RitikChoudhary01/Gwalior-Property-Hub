@@ -2,9 +2,9 @@
 
 // ============================================================
 // SellerDashboard — role dashboard for SELLER accounts.
-// Tabs: overview / listings / enquiries / visits / profile.
-// Mobile: horizontal scrollable tab bar. Desktop: left sidebar.
-// The active tab syncs to the URL (?tab=…) with replace.
+// Tabs: overview / listings / enquiries / visits / commissions /
+// profile. Mobile: horizontal scrollable tab bar. Desktop: left
+// sidebar. The active tab syncs to the URL (?tab=…) with replace.
 // Listing create/edit happens in a Dialog hosting PropertyForm.
 // ============================================================
 
@@ -34,6 +34,7 @@ import {
   ShieldAlert,
   Trash2,
   UserRound,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CommissionsTab } from "./commissions-tab";
 
 // ---------- tabs ----------
 
@@ -97,6 +99,7 @@ const TABS = [
   { id: "listings", label: "Listings", icon: Building2 },
   { id: "enquiries", label: "Enquiries", icon: MessageSquareText },
   { id: "visits", label: "Site visits", icon: CalendarDays },
+  { id: "commissions", label: "Commissions", icon: Wallet },
   { id: "profile", label: "Profile", icon: UserRound },
 ] as const;
 
@@ -1330,6 +1333,7 @@ export function SellerDashboard({ initialTab }: { initialTab?: string }) {
           )}
           {activeTab === "enquiries" && <EnquiriesTab />}
           {activeTab === "visits" && <VisitsTab />}
+          {activeTab === "commissions" && <CommissionsTab partyLabel="Property Owner" />}
           {activeTab === "profile" && <ProfileTab />}
         </div>
       </div>

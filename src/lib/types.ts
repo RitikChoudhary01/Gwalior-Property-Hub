@@ -282,6 +282,25 @@ export interface AgreementDTO {
   transactionCount?: number;
 }
 
+// Role-scoped "my commissions" payload (seller/builder dashboards)
+export interface MyAgreementDTO {
+  id: string;
+  reference: string;
+  commissionType: string;
+  commissionRate: number | null;
+  fixedFee: number | null;
+  startDate: string;
+  endDate: string | null;
+  status: string;
+  notes: string | null;
+}
+
+export interface MyAgreementsDTO {
+  partyType: "SELLER" | "BUILDER";
+  agreements: MyAgreementDTO[];
+  commissions: CommissionDTO[];
+}
+
 export interface AdminUserDTO {
   id: string;
   name: string;
