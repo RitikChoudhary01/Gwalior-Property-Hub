@@ -16,6 +16,8 @@ import {
   SearchX,
   Share2,
   ShieldCheck,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -40,12 +42,15 @@ import {
   formatNumber,
   formatPrice,
   formatPriceFull,
+  formatPricePerSqft,
+  formatSignedPct,
   initials,
 } from "@/lib/format";
 import { CONSTRUCTION_STATUSES } from "@/lib/constants";
 import { useAppStore } from "@/store/use-app-store";
 import type { PropertyDetailDTO } from "@/lib/types";
 import { EnquiryForm } from "../shared/enquiry-form";
+import { EmiCalculator } from "../shared/emi-calculator";
 import { ImageGallery } from "../shared/image-gallery";
 import { PropertyCard } from "../shared/property-card";
 import { EmptyState, SectionHeading } from "../shared/section";
@@ -286,6 +291,16 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
               {formatPrice(property.price)}
             </p>
             {property.negotiable && <Badge variant="secondary">Negotiable</Badge>}
+            {/* Live price context vs the locality — computed from real
+                published listings, shown only when the comparison is honest. */}
+            {property.localityInsights?.vsLocalityPct != null &&
+              Math.abs(property.localityInsights.vsLocalityPct) >= 5 &&
+              property.localityInsights.vsLocalityPct <= 0 && (
+                <Badge className="gap-1 border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                  <TrendingDown className="size-3" aria-hidden="true" />
+                  {formatSignedPct(property.localityInsights.vsLocalityPct)} vs locality avg
+                </Badge>
+              )}
           </div>
           <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
             <MapPin className="size-4 shrink-0" aria-hidden="true" />
@@ -368,6 +383,86 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
             </div>
           </section>
 
+          {/* Locality snapshot — live price intelligence from published listings */}
+          {property.localityInsights && (
+            <section
+              aria-labelledby="locality-insights-heading"
+              className="rounded-xl border bg-card p-4 shadow-sm sm:p-6"
+            >
+              <h2
+                id="locality-insights-heading"
+                className="font-display text-lg font-semibold text-foreground"
+              >
+                {property.localityInsights.locality} price snapshot
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Live market data from {property.localityInsights.listingCount}{" "}
+                {property.localityInsights.listingCount === 1 ? "other home" : "other homes"} listed
+                on Vasati right now.
+              </p>
+
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    This home
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {formatPricePerSqft(property.localityInsights.thisPricePerSqft)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Locality average
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {formatPricePerSqft(property.localityInsights.avgPricePerSqft)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Vs locality
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-1 inline-flex items-center gap-1 text-sm font-semibold",
+                      property.localityInsights.vsLocalityPct == null
+                        ? "text-foreground"
+                        : property.localityInsights.vsLocalityPct <= 0
+                          ? "text-emerald-700"
+                          : "text-amber-700"
+                    )}
+                  >
+                    {property.localityInsights.vsLocalityPct != null &&
+                      property.localityInsights.vsLocalityPct > 0 && (
+                        <TrendingUp className="size-3.5" aria-hidden="true" />
+                      )}
+                    {property.localityInsights.vsLocalityPct != null &&
+                      property.localityInsights.vsLocalityPct < 0 && (
+                        <TrendingDown className="size-3.5" aria-hidden="true" />
+                      )}
+                    {formatSignedPct(property.localityInsights.vsLocalityPct)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Avg listed price
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {formatPrice(property.localityInsights.avgPrice)}
+                  </p>
+                </div>
+              </div>
+
+              {property.localityInsights.vsLocalityPct != null && (
+                <p className="mt-4 rounded-lg bg-muted/60 px-3.5 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
+                  {property.localityInsights.vsLocalityPct <= 0
+                    ? `This home is priced at or below the ${property.localityInsights.locality} average — worth a closer look.`
+                    : `This home is priced above the ${property.localityInsights.locality} average — its condition, floor or amenities may justify the premium.`}
+                </p>
+              )}
+            </section>
+          )}
+
           <section
             aria-labelledby="specs-heading"
             className="rounded-xl border bg-card p-4 shadow-sm sm:p-6"
@@ -388,6 +483,9 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
               ))}
             </dl>
           </section>
+
+          {/* EMI calculator — plan the purchase, not just the price */}
+          <EmiCalculator price={property.price} />
 
           {property.amenities.length > 0 && (
             <section

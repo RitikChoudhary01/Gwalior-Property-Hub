@@ -3,6 +3,7 @@
 // ============================================================
 
 import type { Prisma } from "@prisma/client";
+import type { PropertyDetailDTO } from "@/lib/types";
 
 // ---------- Auth user ----------
 
@@ -85,7 +86,23 @@ export function toCard(p: PropertyWithList) {
   };
 }
 
-export function toDetail(p: PropertyWithDetail, similar: PropertyWithList[] = []) {
+/** Usable floor area for price-per-sqft (plots are priced by plot area). */
+function areaForPricing(p: {
+  type: string;
+  carpetArea: number | null;
+  builtUpArea: number | null;
+  plotArea: number | null;
+}): number | null {
+  const area = p.type === "Plot" ? p.plotArea ?? p.builtUpArea : p.carpetArea ?? p.builtUpArea;
+  return area && area >= 100 ? area : null;
+}
+
+export function toDetail(
+  p: PropertyWithDetail,
+  similar: PropertyWithList[] = [],
+  localityInsights: PropertyDetailDTO["localityInsights"] = null
+) {
+  const area = areaForPricing(p);
   return {
     id: p.id,
     slug: p.slug,
@@ -134,6 +151,8 @@ export function toDetail(p: PropertyWithDetail, similar: PropertyWithList[] = []
     builder: p.builder ? { id: p.builder.id, companyName: p.builder.companyName, isVerified: p.builder.isVerified } : null,
     project: p.project,
     similar: similar.map(toCard),
+    pricePerSqft: area != null ? Math.round(p.price / area) : null,
+    localityInsights,
   };
 }
 

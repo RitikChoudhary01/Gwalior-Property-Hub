@@ -4,6 +4,7 @@ import { getSessionUser, requireUser } from "@/lib/auth";
 import { ok, fail, handle, parseBody } from "@/lib/api-helpers";
 import { audit } from "@/lib/audit";
 import { propertyDetailInclude, propertyListInclude, toDetail, toCard } from "@/lib/serializers";
+import { getLocalitySnapshot } from "@/lib/insights";
 import { notify, notifyAdmins } from "@/lib/notifications";
 import { PROPERTY_TYPES, FURNISHINGS } from "@/lib/constants";
 
@@ -52,8 +53,12 @@ export async function GET(_req: Request, { params }: Params) {
 
     const dto = toDetail({ ...property, views: property.views + (isOwner ? 0 : 1) }, similar);
 
+    // Live locality price context (public data — derived from other published
+    // listings only, never exposes seller information).
+    const localityInsights = await getLocalitySnapshot(property).catch(() => null);
+
     // hide seller contact for guests on draft previews is not needed (drafts blocked above)
-    return ok(dto);
+    return ok({ ...dto, localityInsights });
   });
 }
 
@@ -242,8 +247,9 @@ export async function PATCH(req: Request, { params }: Params) {
       include: propertyListInclude,
       take: 3,
     });
+    const localityInsights = await getLocalitySnapshot(updated).catch(() => null);
 
-    return ok({ property: toDetail(updated, similar) });
+    return ok({ property: toDetail(updated, similar, localityInsights) });
   });
 }
 

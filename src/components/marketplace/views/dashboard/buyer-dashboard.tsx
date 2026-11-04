@@ -23,9 +23,11 @@ import {
   MessageSquareText,
   Phone,
   PlusCircle,
+  Route,
   Search,
   Sparkles,
   UserRound,
+  UserRoundCheck,
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,6 +55,7 @@ import type {
 import { EmptyState, SectionHeading, StatCard } from "../../shared/section";
 import { StatusBadge } from "../../shared/status-badge";
 import { PropertyCard } from "../../shared/property-card";
+import { JourneyTracker } from "../../shared/journey-tracker";
 import {
   RequirementForm,
   RequirementMatchesList,
@@ -85,7 +88,7 @@ const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "favourites", label: "Favourites", icon: Heart },
   { id: "requirements", label: "My requirements", icon: ClipboardList },
-  { id: "enquiries", label: "Enquiries", icon: MessageSquareText },
+  { id: "enquiries", label: "My journey", icon: Route },
   { id: "visits", label: "Site visits", icon: CalendarDays },
   { id: "profile", label: "Profile", icon: UserRound },
 ] as const;
@@ -463,7 +466,9 @@ function RequirementsTab() {
 }
 
 // ============================================================
-// Enquiries tab (buyer's own enquiries)
+// Enquiries tab (buyer's own enquiries) — each card shows the
+// full assisted journey: pipeline stages, assigned advisor and
+// what happens next. This is Vasati's signature buyer feature.
 // ============================================================
 
 function EnquiriesTab() {
@@ -475,7 +480,7 @@ function EnquiriesTab() {
     return (
       <div className="space-y-4">
         {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-36 rounded-xl" />
+          <Skeleton key={i} className="h-48 rounded-xl" />
         ))}
       </div>
     );
@@ -496,60 +501,100 @@ function EnquiriesTab() {
 
   return (
     <div className="space-y-4">
-      {leads.map((lead) => (
-        <article key={lead.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => navigate(`/properties/${lead.property.slug}`)}
-              className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted"
-              aria-label={`Open ${lead.property.title}`}
-            >
-              {lead.property.mainImage ? (
-                <img
-                  src={lead.property.mainImage}
-                  alt={lead.property.title}
-                  loading="lazy"
-                  className="size-full object-cover"
-                />
-              ) : (
-                <span className="grid size-full place-items-center text-muted-foreground">
-                  <Search className="size-5" aria-hidden="true" />
+      {leads.map((lead) => {
+        const closed = lead.status === "CONVERTED" || lead.status === "LOST";
+        return (
+          <article key={lead.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => navigate(`/properties/${lead.property.slug}`)}
+                className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted"
+                aria-label={`Open ${lead.property.title}`}
+              >
+                {lead.property.mainImage ? (
+                  <img
+                    src={lead.property.mainImage}
+                    alt={lead.property.title}
+                    loading="lazy"
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span className="grid size-full place-items-center text-muted-foreground">
+                    <Search className="size-5" aria-hidden="true" />
+                  </span>
+                )}
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/properties/${lead.property.slug}`)}
+                    className="truncate text-left text-[15px] font-medium text-foreground hover:text-primary"
+                  >
+                    {lead.property.title}
+                  </button>
+                  <StatusBadge status={lead.status} />
+                </div>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  Ref {lead.reference} · {lead.property.locality}, {lead.property.city} ·{" "}
+                  {formatPrice(lead.property.price)}
+                </p>
+                {lead.message && (
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                    {lead.message}
+                  </p>
+                )}
+              </div>
+              {/* Assigned Vasati advisor */}
+              <div className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <UserRoundCheck className="size-3.5" aria-hidden="true" />
+                  Your advisor
+                </span>
+                {lead.assignedTo ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Avatar className="size-7">
+                      <AvatarFallback className="bg-accent text-[11px] font-semibold text-accent-foreground">
+                        {initials(lead.assignedTo.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium text-foreground">{lead.assignedTo.name}</span>
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Being assigned</span>
+                )}
+              </div>
+            </div>
+
+            {/* The journey — pipeline stages, advisor and next step */}
+            <div className="mt-4 border-t pt-4">
+              <JourneyTracker status={lead.status} />
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[13px] text-muted-foreground">
+              {lead.budget != null && (
+                <span>
+                  Budget: <span className="font-medium text-foreground">{formatPrice(lead.budget)}</span>
                 </span>
               )}
-            </button>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate(`/properties/${lead.property.slug}`)}
-                  className="truncate text-left text-[15px] font-medium text-foreground hover:text-primary"
-                >
-                  {lead.property.title}
-                </button>
-                <StatusBadge status={lead.status} />
-              </div>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                Ref {lead.reference} · {lead.property.locality}, {lead.property.city} ·{" "}
-                {formatPrice(lead.property.price)}
-              </p>
-              {lead.message && (
-                <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                  {lead.message}
-                </p>
+              {lead.lastContactedAt && (
+                <span>
+                  Last advisor contact:{" "}
+                  <span className="font-medium text-foreground">{formatDate(lead.lastContactedAt)}</span>
+                </span>
               )}
+              {!closed && lead.followUpDate && (
+                <span className="inline-flex items-center gap-1.5 font-medium text-primary">
+                  <Phone className="size-3.5" aria-hidden="true" />
+                  Next update by {formatDate(lead.followUpDate)}
+                </span>
+              )}
+              <span className="sm:ml-auto">Submitted {formatDate(lead.createdAt)}</span>
             </div>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[13px] text-muted-foreground">
-            {lead.budget != null && (
-              <span>
-                Budget: <span className="font-medium text-foreground">{formatPrice(lead.budget)}</span>
-              </span>
-            )}
-            <span className="sm:ml-auto">Submitted {formatDate(lead.createdAt)}</span>
-          </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 }

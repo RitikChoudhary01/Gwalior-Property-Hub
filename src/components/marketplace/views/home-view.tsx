@@ -24,14 +24,15 @@ import {
   Inbox,
   LineChart,
   Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppStore } from "@/store/use-app-store";
 import { api } from "@/lib/api-client";
 import { CITIES } from "@/lib/constants";
-import { formatNumber } from "@/lib/format";
-import type { Paginated, ProjectCardDTO, PropertyCardDTO } from "@/lib/types";
+import { formatNumber, formatPrice, formatPricePerSqft } from "@/lib/format";
+import type { InsightsResponseDTO, Paginated, ProjectCardDTO, PropertyCardDTO } from "@/lib/types";
 import { PropertyCard } from "../shared/property-card";
 import { ProjectCard } from "../shared/project-card";
 import { RequirementForm } from "../shared/requirement-form";
@@ -67,6 +68,7 @@ export function HomeView() {
   const [recent, setRecent] = useState<LoadState<PropertyCardDTO[]>>({ loading: true, data: null });
   const [projects, setProjects] = useState<LoadState<ProjectCardDTO[]>>({ loading: true, data: null });
   const [cityCounts, setCityCounts] = useState<Record<string, number | null>>({});
+  const [insights, setInsights] = useState<LoadState<InsightsResponseDTO>>({ loading: true, data: null });
 
   useEffect(() => {
     let active = true;
@@ -82,6 +84,11 @@ export function HomeView() {
     api<Paginated<ProjectCardDTO>>("/api/projects?pageSize=3")
       .then((res) => active && setProjects({ loading: false, data: res.data }))
       .catch(() => active && setProjects({ loading: false, data: null }));
+
+    // Live locality price intelligence (market pulse section)
+    api<InsightsResponseDTO>("/api/insights?limit=6")
+      .then((res) => active && setInsights({ loading: false, data: res }))
+      .catch(() => active && setInsights({ loading: false, data: null }));
 
     // Parallel per-city listing counts (total from pagination meta)
     Promise.allSettled(
@@ -199,6 +206,74 @@ export function HomeView() {
           })}
         </div>
       </section>
+
+      {/* ============ Market pulse (live locality price intelligence) ============ */}
+      {(insights.loading || (insights.data?.localities.length ?? 0) > 0) && (
+        <section className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 sm:pt-20 lg:px-8">
+          <motion.div {...fadeUp}>
+            <SectionHeading
+              eyebrow="Live market data"
+              title="Local market pulse"
+              description="Average prices per sq.ft. across our most active localities — computed live from Vasati's verified inventory, not stale reports."
+            />
+          </motion.div>
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {insights.loading
+              ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-44 rounded-xl" />)
+              : insights.data?.localities.map((loc) => (
+                  <button
+                    key={`${loc.city}-${loc.locality}`}
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `/properties?city=${encodeURIComponent(loc.city)}&locality=${encodeURIComponent(loc.locality)}`
+                      )
+                    }
+                    className="group rounded-xl border bg-card p-5 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg sm:p-6"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate font-display text-lg font-semibold tracking-tight text-foreground group-hover:text-primary">
+                          {loc.locality}
+                        </h3>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{loc.city}</p>
+                      </div>
+                      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                        <TrendingUp className="size-5" aria-hidden="true" />
+                      </span>
+                    </div>
+                    <p className="mt-4 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {loc.avgPricePerSqft != null ? "Avg price / sq.ft" : "Avg listed price"}
+                    </p>
+                    <p className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground">
+                      {loc.avgPricePerSqft != null ? formatPricePerSqft(loc.avgPricePerSqft) : formatPrice(loc.avgPrice)}
+                    </p>
+                    <p className="mt-1 text-[13px] text-muted-foreground">
+                      {loc.listingCount > 1
+                        ? `Range ${formatPrice(loc.minPrice)} – ${formatPrice(loc.maxPrice)}`
+                        : `From ${formatPrice(loc.minPrice)}`}
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3 text-[13px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        {formatNumber(loc.listingCount)} live{" "}
+                        {loc.listingCount === 1 ? "listing" : "listings"}
+                      </span>
+                      {loc.verifiedCount > 0 && (
+                        <span className="inline-flex items-center gap-1 font-medium text-primary">
+                          <ShieldCheck className="size-3.5" aria-hidden="true" />
+                          {loc.verifiedCount} verified
+                        </span>
+                      )}
+                      <span className="ml-auto inline-flex items-center gap-1 text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                        View listings
+                        <ArrowRight className="size-3.5" aria-hidden="true" />
+                      </span>
+                    </div>
+                  </button>
+                ))}
+          </div>
+        </section>
+      )}
 
       {/* ============ Recently added ============ */}
       {(recent.loading || (recent.data?.length ?? 0) > 0) && (

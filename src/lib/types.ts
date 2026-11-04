@@ -91,6 +91,41 @@ export interface PropertyDetailDTO extends Omit<PropertyCardDTO, "mainImage"> {
   builder: { id: string; companyName: string; isVerified: boolean } | null;
   project: { id: string; name: string; slug: string } | null;
   similar: PropertyCardDTO[];
+  /** Listed price per sq ft (carpet/built-up; plot area for plots); null when no usable area. */
+  pricePerSqft: number | null;
+  /** Live price context for this listing's locality, from other published listings. */
+  localityInsights: LocalitySnapshotDTO | null;
+}
+
+/** Locality price context shown on property detail pages. */
+export interface LocalitySnapshotDTO {
+  locality: string;
+  city: string;
+  listingCount: number;
+  avgPrice: number;
+  avgPricePerSqft: number | null;
+  thisPricePerSqft: number | null;
+  vsLocalityPct: number | null;
+}
+
+/** One locality's aggregate market stats (market pulse surfaces). */
+export interface LocalityStatDTO {
+  locality: string;
+  city: string;
+  listingCount: number;
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  avgPricePerSqft: number | null;
+  pricedByAreaCount: number;
+  verifiedCount: number;
+  mainImage: string | null;
+}
+
+export interface InsightsResponseDTO {
+  city: string | null;
+  totalListings: number;
+  localities: LocalityStatDTO[];
 }
 
 export interface ProjectCardDTO {

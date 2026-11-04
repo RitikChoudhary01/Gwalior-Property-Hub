@@ -41,6 +41,18 @@ export function formatArea(value: number | null | undefined): string {
   return `${value.toLocaleString("en-IN")} sq.ft`;
 }
 
+/** ₹12,450/sq.ft */
+export function formatPricePerSqft(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return `₹${value.toLocaleString("en-IN")}/sq.ft`;
+}
+
+/** +12% / −8% / on par */
+export function formatSignedPct(value: number | null | undefined): string {
+  if (value == null || value === 0) return "on par";
+  return `${value > 0 ? "+" : "−"}${Math.abs(value)}%`;
+}
+
 /** 12 Mar 2025 */
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";

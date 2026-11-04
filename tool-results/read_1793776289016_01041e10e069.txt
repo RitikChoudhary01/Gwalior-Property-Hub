@@ -1,0 +1,933 @@
+     1→"use client";
+     2→
+     3→// ============================================================
+     4→// BuyerDashboard — role dashboard for BUYER accounts.
+     5→// Tabs: overview / favourites / requirements / enquiries /
+     6→// visits / profile.
+     7→// Mobile: horizontal scrollable tab bar. Desktop: left sidebar.
+     8→// The active tab syncs to the URL (?tab=…) with replace.
+     9→// ============================================================
+    10→
+    11→import { useCallback, useEffect, useMemo, useState } from "react";
+    12→import { toast } from "sonner";
+    13→import {
+    14→  ArrowRight,
+    15→  CalendarDays,
+    16→  ChevronDown,
+    17→  ClipboardList,
+    18→  Heart,
+    19→  LayoutDashboard,
+    20→  Loader2,
+    21→  LogOut,
+    22→  Mail,
+    23→  MessageSquareText,
+    24→  Phone,
+    25→  PlusCircle,
+    26→  Search,
+    27→  Sparkles,
+    28→  UserRound,
+    29→  XCircle,
+    30→} from "lucide-react";
+    31→import { cn } from "@/lib/utils";
+    32→import { api } from "@/lib/api-client";
+    33→import { useAppStore } from "@/store/use-app-store";
+    34→import { REQUIREMENT_PURPOSES } from "@/lib/constants";
+    35→import {
+    36→  formatConfig,
+    37→  formatDate,
+    38→  formatMonthYear,
+    39→  formatNumber,
+    40→  formatPrice,
+    41→  formatPriceRange,
+    42→  initials,
+    43→} from "@/lib/format";
+    44→import type {
+    45→  BuyerStats,
+    46→  LeadDTO,
+    47→  Paginated,
+    48→  PropertyCardDTO,
+    49→  RequirementDTO,
+    50→  RequirementMatchDTO,
+    51→  SiteVisitDTO,
+    52→} from "@/lib/types";
+    53→import { EmptyState, SectionHeading, StatCard } from "../../shared/section";
+    54→import { StatusBadge } from "../../shared/status-badge";
+    55→import { PropertyCard } from "../../shared/property-card";
+    56→import {
+    57→  RequirementForm,
+    58→  RequirementMatchesList,
+    59→  type RequirementPostResult,
+    60→} from "../../shared/requirement-form";
+    61→import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+    62→import {
+    63→  Dialog,
+    64→  DialogContent,
+    65→  DialogDescription,
+    66→  DialogHeader,
+    67→  DialogTitle,
+    68→} from "@/components/ui/dialog";
+    69→import {
+    70→  AlertDialog,
+    71→  AlertDialogAction,
+    72→  AlertDialogCancel,
+    73→  AlertDialogContent,
+    74→  AlertDialogDescription,
+    75→  AlertDialogFooter,
+    76→  AlertDialogHeader,
+    77→  AlertDialogTitle,
+    78→} from "@/components/ui/alert-dialog";
+    79→import { Button } from "@/components/ui/button";
+    80→import { Skeleton } from "@/components/ui/skeleton";
+    81→
+    82→// ---------- tabs ----------
+    83→
+    84→const TABS = [
+    85→  { id: "overview", label: "Overview", icon: LayoutDashboard },
+    86→  { id: "favourites", label: "Favourites", icon: Heart },
+    87→  { id: "requirements", label: "My requirements", icon: ClipboardList },
+    88→  { id: "enquiries", label: "Enquiries", icon: MessageSquareText },
+    89→  { id: "visits", label: "Site visits", icon: CalendarDays },
+    90→  { id: "profile", label: "Profile", icon: UserRound },
+    91→] as const;
+    92→
+    93→type TabId = (typeof TABS)[number]["id"];
+    94→const VALID_TABS: readonly string[] = TABS.map((t) => t.id);
+    95→
+    96→// ---------- data hook (local to this view) ----------
+    97→
+    98→function useApiData<T>(path: string) {
+    99→  const [data, setData] = useState<T | null>(null);
+   100→  const [loading, setLoading] = useState(true);
+   101→  const [error, setError] = useState<string | null>(null);
+   102→  const [reloadKey, setReloadKey] = useState(0);
+   103→  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
+   104→
+   105→  // Fetches on mount and on manual refetch. All state updates happen in
+   106→  // async callbacks — previously loaded data stays visible during a refresh.
+   107→  useEffect(() => {
+   108→    let cancelled = false;
+   109→    api<T>(path)
+   110→      .then((res) => {
+   111→        if (cancelled) return;
+   112→        setData(res);
+   113→        setError(null);
+   114→        setLoading(false);
+   115→      })
+   116→      .catch((e: unknown) => {
+   117→        if (cancelled) return;
+   118→        setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+   119→        setLoading(false);
+   120→      });
+   121→    return () => {
+   122→      cancelled = true;
+   123→    };
+   124→  }, [path, reloadKey]);
+   125→
+   126→  return { data, loading, error, refetch };
+   127→}
+   128→
+   129→function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+   130→  return (
+   131→    <EmptyState
+   132→      icon={<XCircle className="size-6" aria-hidden="true" />}
+   133→      title="Could not load this section"
+   134→      description={message}
+   135→      action={<Button onClick={onRetry}>Try again</Button>}
+   136→    />
+   137→  );
+   138→}
+   139→
+   140→// ============================================================
+   141→// Overview tab
+   142→// ============================================================
+   143→
+   144→function OverviewTab() {
+   145→  const navigate = useAppStore((s) => s.navigate);
+   146→  const { data, loading, error, refetch } = useApiData<BuyerStats>("/api/stats");
+   147→
+   148→  if (loading) {
+   149→    return (
+   150→      <div className="space-y-8">
+   151→        <div className="grid gap-4 sm:grid-cols-3">
+   152→          {[...Array(3)].map((_, i) => (
+   153→            <Skeleton key={i} className="h-28 rounded-xl" />
+   154→          ))}
+   155→        </div>
+   156→        <Skeleton className="h-72 rounded-xl" />
+   157→      </div>
+   158→    );
+   159→  }
+   160→
+   161→  if (error || !data) return <ErrorState message={error ?? "Please try again."} onRetry={refetch} />;
+   162→
+   163→  const quickLinks = [
+   164→    { label: "Browse properties", icon: Search, onClick: () => navigate("/properties") },
+   165→    { label: "My favourites", icon: Heart, onClick: () => navigate("/dashboard?tab=favourites") },
+   166→    { label: "My enquiries", icon: MessageSquareText, onClick: () => navigate("/dashboard?tab=enquiries") },
+   167→    { label: "My site visits", icon: CalendarDays, onClick: () => navigate("/dashboard?tab=visits") },
+   168→  ];
+   169→
+   170→  return (
+   171→    <div className="space-y-8">
+   172→      <div className="grid gap-4 sm:grid-cols-3">
+   173→        <StatCard
+   174→          label="Favourites"
+   175→          value={formatNumber(data.favourites)}
+   176→          sub="Homes you have saved"
+   177→          icon={<Heart className="size-5" aria-hidden="true" />}
+   178→        />
+   179→        <StatCard
+   180→          label="Enquiries raised"
+   181→          value={formatNumber(data.enquiries)}
+   182→          sub="Across all properties"
+   183→          icon={<MessageSquareText className="size-5" aria-hidden="true" />}
+   184→        />
+   185→        <StatCard
+   186→          label="Upcoming visits"
+   187→          value={formatNumber(data.upcomingVisits)}
+   188→          sub="Requested, confirmed or rescheduled"
+   189→          icon={<CalendarDays className="size-5" aria-hidden="true" />}
+   190→        />
+   191→      </div>
+   192→
+   193→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   194→        {quickLinks.map((l) => (
+   195→          <button
+   196→            key={l.label}
+   197→            type="button"
+   198→            onClick={l.onClick}
+   199→            className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+   200→          >
+   201→            <span className="flex min-w-0 items-center gap-3">
+   202→              <l.icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+   203→              <span className="truncate text-sm font-medium text-foreground">{l.label}</span>
+   204→            </span>
+   205→            <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+   206→          </button>
+   207→        ))}
+   208→      </div>
+   209→
+   210→      <section>
+   211→        <SectionHeading
+   212→          eyebrow="Trending now"
+   213→          title="Homes buyers are viewing"
+   214→          description="The most viewed properties on Vasati right now."
+   215→          linkText="Explore all"
+   216→          linkHref="#/properties"
+   217→        />
+   218→        {data.recentProperties.length === 0 ? (
+   219→          <EmptyState
+   220→            title="Nothing to show yet"
+   221→            description="Published homes will appear here as buyers start exploring."
+   222→            className="mt-6"
+   223→          />
+   224→        ) : (
+   225→          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   226→            {data.recentProperties.map((p) => (
+   227→              <PropertyCard key={p.id} property={p} />
+   228→            ))}
+   229→          </div>
+   230→        )}
+   231→      </section>
+   232→    </div>
+   233→  );
+   234→}
+   235→
+   236→// ============================================================
+   237→// Favourites tab
+   238→// ============================================================
+   239→
+   240→function FavouritesTab() {
+   241→  const navigate = useAppStore((s) => s.navigate);
+   242→  const favourites = useAppStore((s) => s.favourites);
+   243→  const { data, loading, error, refetch } = useApiData<{ data: PropertyCardDTO[] }>(
+   244→    "/api/favourites/properties"
+   245→  );
+   246→
+   247→  // The card heart toggles the store instantly — mirror it here so
+   248→  // removed favourites disappear from the grid without a refetch.
+   249→  const shown = useMemo(
+   250→    () => (data?.data ?? []).filter((p) => favourites.includes(p.id)),
+   251→    [data, favourites]
+   252→  );
+   253→
+   254→  if (loading) {
+   255→    return (
+   256→      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   257→        {[...Array(3)].map((_, i) => (
+   258→          <Skeleton key={i} className="h-80 rounded-xl" />
+   259→        ))}
+   260→      </div>
+   261→    );
+   262→  }
+   263→
+   264→  if (error) return <ErrorState message={error} onRetry={refetch} />;
+   265→
+   266→  if (shown.length === 0) {
+   267→    return (
+   268→      <EmptyState
+   269→        icon={<Heart className="size-6" aria-hidden="true" />}
+   270→        title="No favourites yet"
+   271→        description="Tap the heart on any listing to save it here and compare later."
+   272→        action={<Button onClick={() => navigate("/properties")}>Browse properties</Button>}
+   273→      />
+   274→    );
+   275→  }
+   276→
+   277→  return (
+   278→    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   279→      {shown.map((p) => (
+   280→        <PropertyCard key={p.id} property={p} />
+   281→      ))}
+   282→    </div>
+   283→  );
+   284→}
+   285→
+   286→// ============================================================
+   287→// Requirements tab (buyer's posted requirements + live matches)
+   288→// ============================================================
+   289→
+   290→type RequirementListItem = RequirementDTO & { matchCount: number; topMatch: string | null };
+   291→
+   292→interface RequirementsListResponse {
+   293→  items: RequirementListItem[];
+   294→  total: number;
+   295→  page: number;
+   296→  pageSize: number;
+   297→}
+   298→
+   299→/** Live matches for one requirement — loaded on expand from the detail endpoint. */
+   300→function RequirementMatches({ requirementId }: { requirementId: string }) {
+   301→  const { data, loading, error, refetch } = useApiData<{
+   302→    requirement: RequirementDTO;
+   303→    matches: RequirementMatchDTO[];
+   304→  }>(`/api/requirements/${requirementId}`);
+   305→
+   306→  if (loading) {
+   307→    return (
+   308→      <div className="space-y-3.5">
+   309→        <Skeleton className="h-5 w-64" />
+   310→        <div className="grid gap-4 sm:grid-cols-2">
+   311→          {[...Array(2)].map((_, i) => (
+   312→            <Skeleton key={i} className="h-72 rounded-xl" />
+   313→          ))}
+   314→        </div>
+   315→      </div>
+   316→    );
+   317→  }
+   318→
+   319→  if (error || !data) return <ErrorState message={error ?? "Please try again."} onRetry={refetch} />;
+   320→
+   321→  return <RequirementMatchesList matches={data.matches} />;
+   322→}
+   323→
+   324→function RequirementsTab() {
+   325→  const [postOpen, setPostOpen] = useState(false);
+   326→  const [expandedId, setExpandedId] = useState<string | null>(null);
+   327→  const { data, loading, error, refetch } = useApiData<RequirementsListResponse>(
+   328→    "/api/requirements?pageSize=50"
+   329→  );
+   330→
+   331→  const items = data?.items ?? [];
+   332→
+   333→  function handlePosted(res: RequirementPostResult) {
+   334→    refetch();
+   335→    setExpandedId(res.requirement.id); // reveal the new requirement with its matches
+   336→  }
+   337→
+   338→  return (
+   339→    <div className="space-y-5">
+   340→      <div className="flex flex-wrap items-center justify-between gap-3">
+   341→        <div>
+   342→          <h2 className="font-display text-lg font-semibold text-foreground">My requirements</h2>
+   343→          <p className="mt-0.5 text-sm text-muted-foreground">
+   344→            Tell us what you&rsquo;re looking for — we source homes on and off the market and call you
+   345→            with matches.
+   346→          </p>
+   347→        </div>
+   348→        <Button type="button" onClick={() => setPostOpen(true)}>
+   349→          <PlusCircle className="size-4" aria-hidden="true" />
+   350→          Post a requirement
+   351→        </Button>
+   352→      </div>
+   353→
+   354→      {loading ? (
+   355→        <div className="space-y-4">
+   356→          {[...Array(2)].map((_, i) => (
+   357→            <Skeleton key={i} className="h-36 rounded-xl" />
+   358→          ))}
+   359→        </div>
+   360→      ) : error ? (
+   361→        <ErrorState message={error} onRetry={refetch} />
+   362→      ) : items.length === 0 ? (
+   363→        <EmptyState
+   364→          icon={<ClipboardList className="size-6" aria-hidden="true" />}
+   365→          title="You haven't posted a requirement yet"
+   366→          description="Can't find the right home? Post what you need — we'll search approved inventory on and off the market and call you with matches."
+   367→          action={
+   368→            <Button type="button" onClick={() => setPostOpen(true)}>
+   369→              Post a requirement
+   370→            </Button>
+   371→          }
+   372→        />
+   373→      ) : (
+   374→        <div className="space-y-4">
+   375→          {items.map((r) => {
+   376→            const expanded = expandedId === r.id;
+   377→            const purposeLabel =
+   378→              REQUIREMENT_PURPOSES.find((p) => p.value === r.purpose)?.label ?? r.purpose;
+   379→            const config =
+   380→              r.propertyType === "Any" && !r.bhk ? "Any home" : formatConfig(r.bhk, r.propertyType);
+   381→            return (
+   382→              <article key={r.id} className="rounded-xl border bg-card shadow-sm">
+   383→                <button
+   384→                  type="button"
+   385→                  onClick={() => setExpandedId(expanded ? null : r.id)}
+   386→                  aria-expanded={expanded}
+   387→                  aria-controls={`${r.id}-matches`}
+   388→                  className="w-full rounded-xl p-4 text-left sm:p-5"
+   389→                >
+   390→                  <span className="flex items-start justify-between gap-3">
+   391→                    <span className="min-w-0">
+   392→                      <span className="flex flex-wrap items-center gap-2">
+   393→                        <span className="text-[15px] font-medium text-foreground">{r.reference}</span>
+   394→                        <StatusBadge status={r.status} />
+   395→                      </span>
+   396→                      <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">
+   397→                        {purposeLabel} · {config} · {r.city}
+   398→                        {r.localities.length > 0 && ` — ${r.localities.join(", ")}`}
+   399→                      </span>
+   400→                    </span>
+   401→                    <ChevronDown
+   402→                      className={cn(
+   403→                        "mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-300",
+   404→                        expanded && "rotate-180"
+   405→                      )}
+   406→                      aria-hidden="true"
+   407→                    />
+   408→                  </span>
+   409→                  <span className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3 text-[13px] text-muted-foreground">
+   410→                    <span>
+   411→                      Budget:{" "}
+   412→                      <span className="font-medium text-foreground">
+   413→                        {formatPriceRange(r.budgetMin, r.budgetMax)}
+   414→                      </span>
+   415→                    </span>
+   416→                    {r.matchCount > 0 ? (
+   417→                      <span className="inline-flex items-center gap-1.5 font-medium text-primary">
+   418→                        <Sparkles className="size-4" aria-hidden="true" />
+   419→                        {r.matchCount} {r.matchCount === 1 ? "match" : "matches"}
+   420→                      </span>
+   421→                    ) : (
+   422→                      <span>Advisor sourcing options</span>
+   423→                    )}
+   424→                    <span className="sm:ml-auto">Posted {formatDate(r.createdAt)}</span>
+   425→                  </span>
+   426→                  {r.matchCount > 0 && r.topMatch && (
+   427→                    <span className="mt-1.5 block truncate text-[13px] text-muted-foreground">
+   428→                      Top match: <span className="font-medium text-foreground">{r.topMatch}</span>
+   429→                    </span>
+   430→                  )}
+   431→                </button>
+   432→
+   433→                {expanded && (
+   434→                  <div id={`${r.id}-matches`} className="px-4 pb-5 sm:px-5">
+   435→                    {r.notes && (
+   436→                      <p className="mb-4 rounded-lg bg-muted/60 px-3.5 py-2.5 text-sm leading-relaxed text-muted-foreground">
+   437→                        &ldquo;{r.notes}&rdquo;
+   438→                      </p>
+   439→                    )}
+   440→                    <RequirementMatches requirementId={r.id} />
+   441→                  </div>
+   442→                )}
+   443→              </article>
+   444→            );
+   445→          })}
+   446→        </div>
+   447→      )}
+   448→
+   449→      <Dialog open={postOpen} onOpenChange={setPostOpen}>
+   450→        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+   451→          <DialogHeader>
+   452→            <DialogTitle className="font-display">Post a requirement</DialogTitle>
+   453→            <DialogDescription>
+   454→              Tell us what you&rsquo;re looking for — we&rsquo;ll match it against approved inventory and
+   455→              an advisor will call you within 24 hours.
+   456→            </DialogDescription>
+   457→          </DialogHeader>
+   458→          <RequirementForm idPrefix="dash-req" onPosted={handlePosted} />
+   459→        </DialogContent>
+   460→      </Dialog>
+   461→    </div>
+   462→  );
+   463→}
+   464→
+   465→// ============================================================
+   466→// Enquiries tab (buyer's own enquiries)
+   467→// ============================================================
+   468→
+   469→function EnquiriesTab() {
+   470→  const navigate = useAppStore((s) => s.navigate);
+   471→  const { data, loading, error, refetch } = useApiData<Paginated<LeadDTO>>("/api/leads?pageSize=50");
+   472→  const leads = data?.data ?? [];
+   473→
+   474→  if (loading) {
+   475→    return (
+   476→      <div className="space-y-4">
+   477→        {[...Array(3)].map((_, i) => (
+   478→          <Skeleton key={i} className="h-36 rounded-xl" />
+   479→        ))}
+   480→      </div>
+   481→    );
+   482→  }
+   483→
+   484→  if (error) return <ErrorState message={error} onRetry={refetch} />;
+   485→
+   486→  if (leads.length === 0) {
+   487→    return (
+   488→      <EmptyState
+   489→        icon={<MessageSquareText className="size-6" aria-hidden="true" />}
+   490→        title="No enquiries yet"
+   491→        description="When you contact a listing owner, your enquiry and its status will show up here."
+   492→        action={<Button onClick={() => navigate("/properties")}>Browse properties</Button>}
+   493→      />
+   494→    );
+   495→  }
+   496→
+   497→  return (
+   498→    <div className="space-y-4">
+   499→      {leads.map((lead) => (
+   500→        <article key={lead.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+   501→          <div className="flex gap-4">
+   502→            <button
+   503→              type="button"
+   504→              onClick={() => navigate(`/properties/${lead.property.slug}`)}
+   505→              className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted"
+   506→              aria-label={`Open ${lead.property.title}`}
+   507→            >
+   508→              {lead.property.mainImage ? (
+   509→                <img
+   510→                  src={lead.property.mainImage}
+   511→                  alt={lead.property.title}
+   512→                  loading="lazy"
+   513→                  className="size-full object-cover"
+   514→                />
+   515→              ) : (
+   516→                <span className="grid size-full place-items-center text-muted-foreground">
+   517→                  <Search className="size-5" aria-hidden="true" />
+   518→                </span>
+   519→              )}
+   520→            </button>
+   521→            <div className="min-w-0 flex-1">
+   522→              <div className="flex flex-wrap items-center gap-2">
+   523→                <button
+   524→                  type="button"
+   525→                  onClick={() => navigate(`/properties/${lead.property.slug}`)}
+   526→                  className="truncate text-left text-[15px] font-medium text-foreground hover:text-primary"
+   527→                >
+   528→                  {lead.property.title}
+   529→                </button>
+   530→                <StatusBadge status={lead.status} />
+   531→              </div>
+   532→              <p className="mt-1 text-[13px] text-muted-foreground">
+   533→                Ref {lead.reference} · {lead.property.locality}, {lead.property.city} ·{" "}
+   534→                {formatPrice(lead.property.price)}
+   535→              </p>
+   536→              {lead.message && (
+   537→                <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+   538→                  {lead.message}
+   539→                </p>
+   540→              )}
+   541→            </div>
+   542→          </div>
+   543→          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[13px] text-muted-foreground">
+   544→            {lead.budget != null && (
+   545→              <span>
+   546→                Budget: <span className="font-medium text-foreground">{formatPrice(lead.budget)}</span>
+   547→              </span>
+   548→            )}
+   549→            <span className="sm:ml-auto">Submitted {formatDate(lead.createdAt)}</span>
+   550→          </div>
+   551→        </article>
+   552→      ))}
+   553→    </div>
+   554→  );
+   555→}
+   556→
+   557→// ============================================================
+   558→// Visits tab (buyer's own site visits)
+   559→// ============================================================
+   560→
+   561→const ACTIVE_VISIT_STATUSES = ["REQUESTED", "CONFIRMED", "RESCHEDULED"];
+   562→
+   563→function VisitsTab() {
+   564→  const navigate = useAppStore((s) => s.navigate);
+   565→  const { data, loading, error, refetch } = useApiData<Paginated<SiteVisitDTO>>(
+   566→    "/api/site-visits?pageSize=50"
+   567→  );
+   568→  const [busyId, setBusyId] = useState<string | null>(null);
+   569→  const [confirmVisit, setConfirmVisit] = useState<SiteVisitDTO | null>(null);
+   570→
+   571→  const visits = data?.data ?? [];
+   572→
+   573→  const todayStart = new Date();
+   574→  todayStart.setHours(0, 0, 0, 0);
+   575→
+   576→  const isUpcoming = (v: SiteVisitDTO) =>
+   577→    ACTIVE_VISIT_STATUSES.includes(v.status) && new Date(v.preferredDate) >= todayStart;
+   578→  const upcoming = visits.filter(isUpcoming);
+   579→  const past = visits.filter((v) => !isUpcoming(v));
+   580→
+   581→  async function cancelVisit(visit: SiteVisitDTO) {
+   582→    setBusyId(visit.id);
+   583→    try {
+   584→      await api(`/api/site-visits/${visit.id}`, {
+   585→        method: "PATCH",
+   586→        body: JSON.stringify({ status: "CANCELLED" }),
+   587→      });
+   588→      toast.success("Visit request cancelled", { description: visit.property.title });
+   589→      setConfirmVisit(null);
+   590→      refetch();
+   591→    } catch (e) {
+   592→      toast.error(e instanceof Error ? e.message : "Could not cancel the visit. Please try again.");
+   593→    } finally {
+   594→      setBusyId(null);
+   595→    }
+   596→  }
+   597→
+   598→  if (loading) {
+   599→    return (
+   600→      <div className="space-y-4">
+   601→        {[...Array(2)].map((_, i) => (
+   602→          <Skeleton key={i} className="h-40 rounded-xl" />
+   603→        ))}
+   604→      </div>
+   605→    );
+   606→  }
+   607→
+   608→  if (error) return <ErrorState message={error} onRetry={refetch} />;
+   609→
+   610→  if (visits.length === 0) {
+   611→    return (
+   612→      <EmptyState
+   613→        icon={<CalendarDays className="size-6" aria-hidden="true" />}
+   614→        title="No site visits yet"
+   615→        description="Found a home you like? Request a guided visit from the listing page and track it here."
+   616→        action={<Button onClick={() => navigate("/properties")}>Browse properties</Button>}
+   617→      />
+   618→    );
+   619→  }
+   620→
+   621→  function VisitCard({ visit }: { visit: SiteVisitDTO }) {
+   622→    const cancellable = ACTIVE_VISIT_STATUSES.includes(visit.status) && isUpcoming(visit);
+   623→    return (
+   624→      <article className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+   625→        <div className="flex flex-wrap items-start justify-between gap-3">
+   626→          <div className="min-w-0">
+   627→            <div className="flex flex-wrap items-center gap-2">
+   628→              <h3 className="truncate text-[15px] font-medium text-foreground">{visit.property.title}</h3>
+   629→              <StatusBadge status={visit.status} />
+   630→            </div>
+   631→            <p className="mt-1 text-[13px] text-muted-foreground">
+   632→              {visit.property.locality}, {visit.property.city}
+   633→            </p>
+   634→          </div>
+   635→          <Button
+   636→            type="button"
+   637→            variant="outline"
+   638→            size="sm"
+   639→            onClick={() => navigate(`/properties/${visit.property.slug}`)}
+   640→          >
+   641→            View listing
+   642→          </Button>
+   643→        </div>
+   644→        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[13px] text-muted-foreground">
+   645→          <span className="inline-flex items-center gap-1.5">
+   646→            <CalendarDays className="size-4" aria-hidden="true" />
+   647→            {formatDate(visit.preferredDate)}
+   648→          </span>
+   649→          <span>{visit.preferredTime}</span>
+   650→          {cancellable && (
+   651→            <Button
+   652→              type="button"
+   653→              variant="outline"
+   654→              size="sm"
+   655→              className="ml-auto text-destructive hover:text-destructive"
+   656→              disabled={busyId === visit.id}
+   657→              onClick={() => setConfirmVisit(visit)}
+   658→            >
+   659→              {busyId === visit.id && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+   660→              Cancel request
+   661→            </Button>
+   662→          )}
+   663→        </div>
+   664→      </article>
+   665→    );
+   666→  }
+   667→
+   668→  return (
+   669→    <div className="space-y-8">
+   670→      <section aria-labelledby="upcoming-visits-heading">
+   671→        <h2 id="upcoming-visits-heading" className="font-display text-lg font-semibold text-foreground">
+   672→          Upcoming
+   673→        </h2>
+   674→        {upcoming.length === 0 ? (
+   675→          <p className="mt-3 rounded-xl border border-dashed bg-card/60 px-4 py-6 text-center text-sm text-muted-foreground">
+   676→            No upcoming visits. Request one from any listing page.
+   677→          </p>
+   678→        ) : (
+   679→          <div className="mt-4 space-y-4">
+   680→            {upcoming.map((v) => (
+   681→              <VisitCard key={v.id} visit={v} />
+   682→            ))}
+   683→          </div>
+   684→        )}
+   685→      </section>
+   686→
+   687→      {past.length > 0 && (
+   688→        <section aria-labelledby="past-visits-heading">
+   689→          <h2 id="past-visits-heading" className="font-display text-lg font-semibold text-foreground">
+   690→            Past
+   691→          </h2>
+   692→          <div className="mt-4 space-y-4">
+   693→            {past.map((v) => (
+   694→              <VisitCard key={v.id} visit={v} />
+   695→            ))}
+   696→          </div>
+   697→        </section>
+   698→      )}
+   699→
+   700→      <AlertDialog open={!!confirmVisit} onOpenChange={(o) => !o && setConfirmVisit(null)}>
+   701→        <AlertDialogContent>
+   702→          <AlertDialogHeader>
+   703→            <AlertDialogTitle>Cancel this visit request?</AlertDialogTitle>
+   704→            <AlertDialogDescription>
+   705→              {confirmVisit &&
+   706→                `Your visit to "${confirmVisit.property.title}" on ${formatDate(
+   707→                  confirmVisit.preferredDate
+   708→                )} at ${confirmVisit.preferredTime} will be cancelled.`}
+   709→            </AlertDialogDescription>
+   710→          </AlertDialogHeader>
+   711→          <AlertDialogFooter>
+   712→            <AlertDialogCancel disabled={busyId !== null}>Keep visit</AlertDialogCancel>
+   713→            <AlertDialogAction
+   714→              disabled={busyId !== null}
+   715→              onClick={(e) => {
+   716→                e.preventDefault();
+   717→                if (confirmVisit) void cancelVisit(confirmVisit);
+   718→              }}
+   719→              className="bg-destructive text-white hover:bg-destructive/90"
+   720→            >
+   721→              {busyId !== null && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+   722→              Cancel visit
+   723→            </AlertDialogAction>
+   724→          </AlertDialogFooter>
+   725→        </AlertDialogContent>
+   726→      </AlertDialog>
+   727→    </div>
+   728→  );
+   729→}
+   730→
+   731→// ============================================================
+   732→// Profile tab
+   733→// ============================================================
+   734→
+   735→function ProfileTab() {
+   736→  const user = useAppStore((s) => s.user);
+   737→  const logout = useAppStore((s) => s.logout);
+   738→  const [signingOut, setSigningOut] = useState(false);
+   739→
+   740→  if (!user) return null;
+   741→
+   742→  async function handleSignOut() {
+   743→    setSigningOut(true);
+   744→    try {
+   745→      await logout();
+   746→      toast.success("Signed out", { description: "See you soon." });
+   747→    } catch {
+   748→      toast.error("Could not sign out. Please try again.");
+   749→    } finally {
+   750→      setSigningOut(false);
+   751→    }
+   752→  }
+   753→
+   754→  return (
+   755→    <div className="space-y-6">
+   756→      <div className="rounded-xl border bg-card p-6 shadow-sm">
+   757→        <div className="flex flex-wrap items-center gap-4">
+   758→          <Avatar className="size-16">
+   759→            <AvatarFallback className="bg-primary/10 font-display text-xl font-semibold text-primary">
+   760→              {initials(user.name)}
+   761→            </AvatarFallback>
+   762→          </Avatar>
+   763→          <div>
+   764→            <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">{user.name}</h2>
+   765→            <p className="mt-0.5 text-sm text-muted-foreground">Buyer account</p>
+   766→          </div>
+   767→        </div>
+   768→
+   769→        <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+   770→          <div className="rounded-lg border bg-background p-3.5">
+   771→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   772→              <Mail className="size-3.5" aria-hidden="true" /> Email
+   773→            </dt>
+   774→            <dd className="mt-1.5 truncate text-sm font-medium text-foreground">{user.email}</dd>
+   775→          </div>
+   776→          <div className="rounded-lg border bg-background p-3.5">
+   777→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   778→              <Phone className="size-3.5" aria-hidden="true" /> Phone
+   779→            </dt>
+   780→            <dd className="mt-1.5 text-sm font-medium text-foreground">{user.phone ?? "Not provided"}</dd>
+   781→          </div>
+   782→          <div className="rounded-lg border bg-background p-3.5">
+   783→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   784→              <CalendarDays className="size-3.5" aria-hidden="true" /> Member since
+   785→            </dt>
+   786→            <dd className="mt-1.5 text-sm font-medium text-foreground">
+   787→              {formatMonthYear(user.createdAt)}
+   788→            </dd>
+   789→          </div>
+   790→          <div className="rounded-lg border bg-background p-3.5">
+   791→            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+   792→              <UserRound className="size-3.5" aria-hidden="true" /> Account type
+   793→            </dt>
+   794→            <dd className="mt-1.5 text-sm font-medium text-foreground">Buyer</dd>
+   795→          </div>
+   796→        </dl>
+   797→      </div>
+   798→
+   799→      <div className="rounded-xl border bg-card p-5 shadow-sm">
+   800→        <h3 className="text-sm font-semibold text-foreground">Account settings</h3>
+   801→        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+   802→          For security, profile details are managed by our team. To change your email address or delete
+   803→          your account, contact support at{" "}
+   804→          <a href="mailto:support@vasati.in" className="font-medium text-primary hover:underline">
+   805→            support@vasati.in
+   806→          </a>
+   807→          .
+   808→        </p>
+   809→      </div>
+   810→
+   811→      <div>
+   812→        <Button
+   813→          type="button"
+   814→          variant="outline"
+   815→          className="text-destructive hover:text-destructive"
+   816→          onClick={() => void handleSignOut()}
+   817→          disabled={signingOut}
+   818→        >
+   819→          {signingOut ? (
+   820→            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+   821→          ) : (
+   822→            <LogOut className="size-4" aria-hidden="true" />
+   823→          )}
+   824→          Sign out
+   825→        </Button>
+   826→      </div>
+   827→    </div>
+   828→  );
+   829→}
+   830→
+   831→// ============================================================
+   832→// BuyerDashboard shell
+   833→// ============================================================
+   834→
+   835→export function BuyerDashboard({ initialTab }: { initialTab?: string }) {
+   836→  const user = useAppStore((s) => s.user);
+   837→  const navigate = useAppStore((s) => s.navigate);
+   838→  const route = useAppStore((s) => s.route);
+   839→
+   840→  // The URL is the single source of truth for the active tab. The
+   841→  // initialTab prop seeds the first render (it comes from the same ?tab=
+   842→  // query parameter, so the two always agree).
+   843→  const tabParam = route.query.get("tab") ?? initialTab;
+   844→  const activeTab: TabId =
+   845→    tabParam && VALID_TABS.includes(tabParam) ? (tabParam as TabId) : "overview";
+   846→
+   847→  function selectTab(tab: TabId) {
+   848→    navigate(`/dashboard?tab=${tab}`, { replace: true });
+   849→  }
+   850→
+   851→  const firstName = user?.name.split(" ")[0] ?? "there";
+   852→
+   853→  return (
+   854→    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+   855→      <header>
+   856→        <p className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">Buyer dashboard</p>
+   857→        <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+   858→          Welcome back, {firstName}
+   859→        </h1>
+   860→        <p className="mt-1.5 text-sm text-muted-foreground">
+   861→          Track your saved homes, requirements, enquiries and site visits in one place.
+   862→        </p>
+   863→      </header>
+   864→
+   865→      <div className="mt-8 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+   866→        {/* Mobile: horizontal scrollable tab bar */}
+   867→        <nav
+   868→          aria-label="Dashboard sections"
+   869→          className="vasati-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:hidden"
+   870→        >
+   871→          {TABS.map((t) => {
+   872→            const Icon = t.icon;
+   873→            const active = activeTab === t.id;
+   874→            return (
+   875→              <button
+   876→                key={t.id}
+   877→                type="button"
+   878→                onClick={() => selectTab(t.id)}
+   879→                aria-current={active ? "page" : undefined}
+   880→                className={cn(
+   881→                  "flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+   882→                  active
+   883→                    ? "border-primary bg-primary text-primary-foreground"
+   884→                    : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+   885→                )}
+   886→              >
+   887→                <Icon className="size-4" aria-hidden="true" />
+   888→                {t.label}
+   889→              </button>
+   890→            );
+   891→          })}
+   892→        </nav>
+   893→
+   894→        {/* Desktop: left sidebar */}
+   895→        <nav aria-label="Dashboard sections" className="hidden lg:block">
+   896→          <div className="flex w-56 flex-col gap-1 rounded-xl border bg-card p-2 shadow-sm">
+   897→            {TABS.map((t) => {
+   898→              const Icon = t.icon;
+   899→              const active = activeTab === t.id;
+   900→              return (
+   901→                <button
+   902→                  key={t.id}
+   903→                  type="button"
+   904→                  onClick={() => selectTab(t.id)}
+   905→                  aria-current={active ? "page" : undefined}
+   906→                  className={cn(
+   907→                    "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+   908→                    active
+   909→                      ? "bg-primary text-primary-foreground"
+   910→                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+   911→                  )}
+   912→                >
+   913→                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+   914→                  {t.label}
+   915→                </button>
+   916→              );
+   917→            })}
+   918→          </div>
+   919→        </nav>
+   920→
+   921→        <div className="mt-6 min-w-0 lg:mt-0">
+   922→          {activeTab === "overview" && <OverviewTab />}
+   923→          {activeTab === "favourites" && <FavouritesTab />}
+   924→          {activeTab === "requirements" && <RequirementsTab />}
+   925→          {activeTab === "enquiries" && <EnquiriesTab />}
+   926→          {activeTab === "visits" && <VisitsTab />}
+   927→          {activeTab === "profile" && <ProfileTab />}
+   928→        </div>
+   929→      </div>
+   930→    </section>
+   931→  );
+   932→}
+   933→
