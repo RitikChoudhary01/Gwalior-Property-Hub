@@ -1,0 +1,1092 @@
+     1→"use client";
+     2→
+     3→// ============================================================
+     4→// PropertyForm — create / edit a listing from the seller
+     5→// dashboard. Designed to be rendered inside a Dialog with
+     6→// `className="gap-0 p-0 sm:max-w-3xl"` on the DialogContent.
+     7→// Handles uploads with per-image progress, image ordering,
+     8→// client validation and the exact /api/properties contract.
+     9→// ============================================================
+    10→
+    11→import { useRef, useState } from "react";
+    12→import { toast } from "sonner";
+    13→import {
+    14→  AlertCircle,
+    15→  ChevronDown,
+    16→  ChevronLeft,
+    17→  ChevronRight,
+    18→  Info,
+    19→  Loader2,
+    20→  Trash2,
+    21→  UploadCloud,
+    22→} from "lucide-react";
+    23→import { cn } from "@/lib/utils";
+    24→import { api, uploadFile } from "@/lib/api-client";
+    25→import { formatPriceFull } from "@/lib/format";
+    26→import {
+    27→  AMENITIES,
+    28→  CITIES,
+    29→  CONSTRUCTION_STATUSES,
+    30→  FURNISHINGS,
+    31→  POSSESSION_PERIODS,
+    32→  PROPERTY_TYPES,
+    33→} from "@/lib/constants";
+    34→import type { PropertyDetailDTO } from "@/lib/types";
+    35→import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+    36→import { Button } from "@/components/ui/button";
+    37→import {
+    38→  Collapsible,
+    39→  CollapsibleContent,
+    40→  CollapsibleTrigger,
+    41→} from "@/components/ui/collapsible";
+    42→import {
+    43→  DialogDescription,
+    44→  DialogHeader,
+    45→  DialogTitle,
+    46→} from "@/components/ui/dialog";
+    47→import { Input } from "@/components/ui/input";
+    48→import { Label } from "@/components/ui/label";
+    49→import { Progress } from "@/components/ui/progress";
+    50→import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+    51→import {
+    52→  Select,
+    53→  SelectContent,
+    54→  SelectItem,
+    55→  SelectTrigger,
+    56→  SelectValue,
+    57→} from "@/components/ui/select";
+    58→import { Switch } from "@/components/ui/switch";
+    59→import { Textarea } from "@/components/ui/textarea";
+    60→
+    61→// ---------- constants ----------
+    62→
+    63→const MAX_PHOTOS = 12;
+    64→const MAX_FILE_MB = 5;
+    65→const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+    66→
+    67→const FACING_OPTIONS = [
+    68→  "North",
+    69→  "East",
+    70→  "South",
+    71→  "West",
+    72→  "North-East",
+    73→  "North-West",
+    74→  "South-East",
+    75→  "South-West",
+    76→] as const;
+    77→
+    78→const AGE_OPTIONS = [
+    79→  { value: "0-1", label: "0-1 years" },
+    80→  { value: "1-2", label: "1-2 years" },
+    81→  { value: "2-3", label: "2-3 years" },
+    82→  { value: "3-5", label: "3-5 years" },
+    83→  { value: "5-7", label: "5-7 years" },
+    84→  { value: "7-10", label: "7-10 years" },
+    85→  { value: "10+", label: "10+ years" },
+    86→];
+    87→
+    88→const BATHROOM_OPTIONS = ["1", "2", "3", "4", "5", "6"] as const;
+    89→const BHK_OPTIONS = ["1", "2", "3", "4", "5", "6"] as const;
+    90→const PARKING_OPTIONS = ["0", "1", "2", "3", "4"] as const;
+    91→
+    92→// ---------- types ----------
+    93→
+    94→interface FormState {
+    95→  title: string;
+    96→  description: string;
+    97→  type: string;
+    98→  price: string;
+    99→  negotiable: boolean;
+   100→  city: string;
+   101→  locality: string;
+   102→  address: string;
+   103→  latitude: string;
+   104→  longitude: string;
+   105→  bhk: string; // "na" = not applicable (Plot)
+   106→  bathrooms: string;
+   107→  carpetArea: string;
+   108→  builtUpArea: string;
+   109→  plotArea: string;
+   110→  furnishing: string;
+   111→  parking: string;
+   112→  floorInfo: string;
+   113→  facing: string;
+   114→  constructionStatus: string;
+   115→  possessionDate: string;
+   116→  ageOfProperty: string;
+   117→  reraNumber: string;
+   118→}
+   119→
+   120→interface UploadItem {
+   121→  id: string;
+   122→  name: string;
+   123→  progress: number;
+   124→}
+   125→
+   126→type SubmitKind = "submit" | "draft";
+   127→
+   128→// ---------- small helpers (module scope) ----------
+   129→
+   130→function FormSection({
+   131→  title,
+   132→  description,
+   133→  children,
+   134→}: {
+   135→  title: string;
+   136→  description?: string;
+   137→  children: React.ReactNode;
+   138→}) {
+   139→  return (
+   140→    <section className="space-y-4">
+   141→      <div className="border-b pb-2">
+   142→        <h3 className="text-sm font-semibold tracking-wide text-foreground uppercase">{title}</h3>
+   143→        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+   144→      </div>
+   145→      {children}
+   146→    </section>
+   147→  );
+   148→}
+   149→
+   150→function FieldError({ message }: { message?: string }) {
+   151→  if (!message) return null;
+   152→  return <p className="text-xs font-medium text-destructive">{message}</p>;
+   153→}
+   154→
+   155→function isValidArea(value: string): boolean {
+   156→  const n = Number(value.trim());
+   157→  return Number.isFinite(n) && Number.isInteger(n) && n >= 100;
+   158→}
+   159→
+   160→function isValidCoord(value: string, range: number): boolean {
+   161→  const n = Number(value.trim());
+   162→  return Number.isFinite(n) && n >= -range && n <= range;
+   163→}
+   164→
+   165→// ============================================================
+   166→// PropertyForm
+   167→// ============================================================
+   168→
+   169→export function PropertyForm({
+   170→  property,
+   171→  onSaved,
+   172→  onClose,
+   173→}: {
+   174→  property?: PropertyDetailDTO | null;
+   175→  onSaved: () => void;
+   176→  onClose: () => void;
+   177→}) {
+   178→  const isEdit = !!property;
+   179→
+   180→  const [form, setForm] = useState<FormState>(() => ({
+   181→    title: property?.title ?? "",
+   182→    description: property?.description ?? "",
+   183→    type: property?.type ?? "Apartment",
+   184→    price: property ? String(property.price) : "",
+   185→    negotiable: property?.negotiable ?? false,
+   186→    city: property?.city ?? "",
+   187→    locality: property?.locality ?? "",
+   188→    address: property?.address ?? "",
+   189→    latitude: property?.latitude != null ? String(property.latitude) : "",
+   190→    longitude: property?.longitude != null ? String(property.longitude) : "",
+   191→    bhk: property?.bhk != null ? String(property.bhk) : "na",
+   192→    bathrooms: property?.bathrooms != null ? String(property.bathrooms) : "",
+   193→    carpetArea: property?.carpetArea != null ? String(property.carpetArea) : "",
+   194→    builtUpArea: property?.builtUpArea != null ? String(property.builtUpArea) : "",
+   195→    plotArea: property?.plotArea != null ? String(property.plotArea) : "",
+   196→    furnishing: property?.furnishing ?? "",
+   197→    parking: property ? String(property.parking ?? 0) : "",
+   198→    floorInfo: property?.floorInfo ?? "",
+   199→    facing: property?.facing ?? "",
+   200→    constructionStatus: property?.constructionStatus ?? "READY_TO_MOVE",
+   201→    possessionDate: property?.possessionDate ?? "",
+   202→    ageOfProperty: property?.ageOfProperty ?? "",
+   203→    reraNumber: property?.reraNumber ?? "",
+   204→  }));
+   205→
+   206→  const [amenities, setAmenities] = useState<string[]>(() => property?.amenities ?? []);
+   207→  const [images, setImages] = useState<{ url: string }[]>(() =>
+   208→    property ? [...property.images].sort((a, b) => a.sortOrder - b.sortOrder).map((i) => ({ url: i.url })) : []
+   209→  );
+   210→  const [mainIndex, setMainIndex] = useState<number>(() => {
+   211→    if (!property || property.images.length === 0) return 0;
+   212→    const sorted = [...property.images].sort((a, b) => a.sortOrder - b.sortOrder);
+   213→    const idx = sorted.findIndex((i) => i.isMain);
+   214→    return idx >= 0 ? idx : 0;
+   215→  });
+   216→
+   217→  const [uploads, setUploads] = useState<UploadItem[]>([]);
+   218→  const [dragging, setDragging] = useState(false);
+   219→  const [coordsOpen, setCoordsOpen] = useState<boolean>(
+   220→    () => property?.latitude != null || property?.longitude != null
+   221→  );
+   222→
+   223→  const [errors, setErrors] = useState<Record<string, string>>({});
+   224→  const [apiError, setApiError] = useState<string | null>(null);
+   225→  const [submitting, setSubmitting] = useState<SubmitKind | null>(null);
+   226→
+   227→  const fileInputRef = useRef<HTMLInputElement>(null);
+   228→
+   229→  const cityEntry = CITIES.find((c) => c.city === form.city);
+   230→  const isPlot = form.type === "Plot";
+   231→  const descriptionLength = form.description.trim().length;
+   232→  const priceValue = form.price.trim() !== "" ? Number(form.price) : NaN;
+   233→  const uploadingCount = uploads.length;
+   234→
+   235→  // Editing a listing that is a draft or was rejected offers the
+   236→  // submit / draft choice; other statuses simply save changes.
+   237→  const canChooseDraft = !isEdit || property!.status === "DRAFT" || property!.status === "REJECTED";
+   238→  const primaryLabel = isEdit && !canChooseDraft ? "Save changes" : "Submit for approval";
+   239→
+   240→  function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
+   241→    setForm((f) => ({ ...f, [key]: value }));
+   242→  }
+   243→
+   244→  // ---------- photos ----------
+   245→
+   246→  async function handleFiles(fileList: FileList | File[]) {
+   247→    const files = Array.from(fileList);
+   248→    let attached = images.length + uploads.length;
+   249→
+   250→    for (const file of files) {
+   251→      if (attached >= MAX_PHOTOS) {
+   252→        toast.error(`You can upload up to ${MAX_PHOTOS} photos.`);
+   253→        break;
+   254→      }
+   255→      if (!ACCEPTED_TYPES.includes(file.type)) {
+   256→        toast.error(`${file.name}: only JPEG, PNG or WebP photos are allowed.`);
+   257→        continue;
+   258→      }
+   259→      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+   260→        toast.error(`${file.name}: photos must be ${MAX_FILE_MB} MB or smaller.`);
+   261→        continue;
+   262→      }
+   263→
+   264→      attached += 1;
+   265→      const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+   266→      setUploads((u) => [...u, { id, name: file.name, progress: 0 }]);
+   267→      try {
+   268→        const res = await uploadFile(file, (pct) => {
+   269→          setUploads((u) => u.map((x) => (x.id === id ? { ...x, progress: pct } : x)));
+   270→        });
+   271→        setImages((imgs) => [...imgs, { url: res.url }]);
+   272→        setUploads((u) => u.filter((x) => x.id !== id));
+   273→      } catch {
+   274→        setUploads((u) => u.filter((x) => x.id !== id));
+   275→        toast.error(`${file.name}: upload failed. Please try again.`);
+   276→      }
+   277→    }
+   278→  }
+   279→
+   280→  function moveImage(index: number, dir: -1 | 1) {
+   281→    const target = index + dir;
+   282→    if (target < 0 || target >= images.length) return;
+   283→    setImages((prev) => {
+   284→      const next = [...prev];
+   285→      [next[index], next[target]] = [next[target], next[index]];
+   286→      return next;
+   287→    });
+   288→    setMainIndex((prev) => {
+   289→      if (prev === index) return target;
+   290→      if (prev === target) return index;
+   291→      return prev;
+   292→    });
+   293→  }
+   294→
+   295→  function removeImage(index: number) {
+   296→    setImages((prev) => prev.filter((_, i) => i !== index));
+   297→    setMainIndex((prev) => {
+   298→      if (images.length <= 1) return 0;
+   299→      if (index < prev) return prev - 1;
+   300→      if (index === prev) return Math.min(prev, images.length - 2);
+   301→      return prev;
+   302→    });
+   303→  }
+   304→
+   305→  // ---------- validation + submit ----------
+   306→
+   307→  function validate(): Record<string, string> {
+   308→    const errs: Record<string, string> = {};
+   309→    if (form.title.trim().length < 10) errs.title = "Title must be at least 10 characters.";
+   310→    if (descriptionLength < 50) errs.description = "Description must be at least 50 characters.";
+   311→    const price = Number(form.price.trim());
+   312→    if (form.price.trim() === "" || !Number.isFinite(price) || price < 500000) {
+   313→      errs.price = "Enter a price of at least ₹5,00,000.";
+   314→    } else if (!Number.isInteger(price)) {
+   315→      errs.price = "Price must be a whole number in rupees.";
+   316→    }
+   317→    if (!form.city) errs.city = "Select a city.";
+   318→    if (!form.locality) errs.locality = "Select a locality.";
+   319→    if (form.address.trim().length < 10) errs.address = "Enter the full address (at least 10 characters).";
+   320→    if (!isPlot && (form.bhk === "" || form.bhk === "na")) {
+   321→      errs.bhk = "Select the number of bedrooms.";
+   322→    }
+   323→    if (images.length === 0) {
+   324→      errs.photos = "Add at least one photo — listings with photos get far more enquiries.";
+   325→    }
+   326→    if (form.carpetArea.trim() !== "" && !isValidArea(form.carpetArea)) {
+   327→      errs.carpetArea = "Enter a valid carpet area of at least 100 sq.ft.";
+   328→    }
+   329→    if (form.builtUpArea.trim() !== "" && !isValidArea(form.builtUpArea)) {
+   330→      errs.builtUpArea = "Enter a valid built-up area of at least 100 sq.ft.";
+   331→    }
+   332→    if (isPlot && form.plotArea.trim() !== "" && !isValidArea(form.plotArea)) {
+   333→      errs.plotArea = "Enter a valid plot area of at least 100 sq.ft.";
+   334→    }
+   335→    if (form.latitude.trim() !== "" && !isValidCoord(form.latitude, 90)) {
+   336→      errs.latitude = "Latitude must be a number between -90 and 90.";
+   337→    }
+   338→    if (form.longitude.trim() !== "" && !isValidCoord(form.longitude, 180)) {
+   339→      errs.longitude = "Longitude must be a number between -180 and 180.";
+   340→    }
+   341→    return errs;
+   342→  }
+   343→
+   344→  function buildBody(): Record<string, unknown> {
+   345→    const toNum = (v: string): number | null => {
+   346→      const t = v.trim();
+   347→      if (t === "") return null;
+   348→      const n = Number(t);
+   349→      return Number.isFinite(n) ? n : null;
+   350→    };
+   351→    return {
+   352→      title: form.title.trim(),
+   353→      description: form.description.trim(),
+   354→      type: form.type,
+   355→      price: Number(form.price.trim()),
+   356→      negotiable: form.negotiable,
+   357→      city: form.city,
+   358→      state: cityEntry?.state ?? "",
+   359→      locality: form.locality,
+   360→      address: form.address.trim(),
+   361→      latitude: toNum(form.latitude),
+   362→      longitude: toNum(form.longitude),
+   363→      bhk: !isPlot && form.bhk !== "" && form.bhk !== "na" ? Number(form.bhk) : null,
+   364→      bathrooms: form.bathrooms !== "" ? Number(form.bathrooms) : null,
+   365→      carpetArea: toNum(form.carpetArea),
+   366→      builtUpArea: toNum(form.builtUpArea),
+   367→      plotArea: isPlot ? toNum(form.plotArea) : null,
+   368→      furnishing: form.furnishing !== "" ? form.furnishing : null,
+   369→      parking: form.parking === "" ? 0 : Number(form.parking),
+   370→      floorInfo: form.floorInfo.trim() !== "" ? form.floorInfo.trim() : null,
+   371→      facing: form.facing !== "" ? form.facing : null,
+   372→      constructionStatus: form.constructionStatus,
+   373→      possessionDate: form.constructionStatus === "UNDER_CONSTRUCTION" && form.possessionDate !== "" ? form.possessionDate : null,
+   374→      ageOfProperty: form.constructionStatus === "READY_TO_MOVE" && form.ageOfProperty !== "" ? form.ageOfProperty : null,
+   375→      reraNumber: form.reraNumber.trim() !== "" ? form.reraNumber.trim() : null,
+   376→      amenities,
+   377→      images: images.map((img, i) => ({ url: img.url, isMain: i === mainIndex })),
+   378→    };
+   379→  }
+   380→
+   381→  async function handleSubmit(kind: SubmitKind) {
+   382→    const errs = validate();
+   383→    if (Object.keys(errs).length > 0) {
+   384→      setErrors(errs);
+   385→      toast.error("Please fix the highlighted fields before saving.");
+   386→      return;
+   387→    }
+   388→    setErrors({});
+   389→    setApiError(null);
+   390→    setSubmitting(kind);
+   391→    try {
+   392→      const body = buildBody();
+   393→      if (property) {
+   394→        if (canChooseDraft) {
+   395→          body.status = kind === "submit" ? "PENDING" : "DRAFT";
+   396→        }
+   397→        await api(`/api/properties/${property.id}`, { method: "PATCH", body: JSON.stringify(body) });
+   398→      } else {
+   399→        body.draft = kind === "draft";
+   400→        await api("/api/properties", { method: "POST", body: JSON.stringify(body) });
+   401→      }
+   402→      if (kind === "draft") {
+   403→        toast.success("Draft saved", { description: "You can finish and submit it any time." });
+   404→      } else if (isEdit) {
+   405→        toast.success("Listing updated", { description: "It is now pending approval." });
+   406→      } else {
+   407→        toast.success("Listing submitted for approval", {
+   408→          description: "Our team reviews new listings, usually within 24 hours.",
+   409→        });
+   410→      }
+   411→      onSaved();
+   412→      onClose();
+   413→    } catch (e) {
+   414→      setApiError(e instanceof Error ? e.message : "Could not save the listing. Please try again.");
+   415→    } finally {
+   416→      setSubmitting(null);
+   417→    }
+   418→  }
+   419→
+   420→  // ---------- render ----------
+   421→
+   422→  return (
+   423→    <div className="flex flex-col">
+   424→      <DialogHeader className="shrink-0 border-b px-6 py-4 text-left">
+   425→        <DialogTitle className="font-display text-lg font-semibold tracking-tight">
+   426→          {isEdit ? "Edit listing" : "List a new property"}
+   427→        </DialogTitle>
+   428→        <DialogDescription>
+   429→          {isEdit
+   430→            ? "Update the details below. Your latest photos and amenities are saved with this listing."
+   431→            : "Accurate details and good photos help your listing get approved and found faster."}
+   432→        </DialogDescription>
+   433→      </DialogHeader>
+   434→
+   435→      <div className="vasati-scroll max-h-[75vh] space-y-8 overflow-y-auto px-6 py-5">
+   436→        {apiError && (
+   437→          <Alert variant="destructive">
+   438→            <AlertCircle className="size-4" aria-hidden="true" />
+   439→            <AlertTitle>Could not save the listing</AlertTitle>
+   440→            <AlertDescription>{apiError}</AlertDescription>
+   441→          </Alert>
+   442→        )}
+   443→
+   444→        {isEdit && property!.status === "PUBLISHED" && (
+   445→          <Alert className="border-primary/30 bg-accent/60">
+   446→            <Info className="size-4 text-primary" aria-hidden="true" />
+   447→            <AlertDescription>
+   448→              Saving changes will send this listing back for approval before it goes live again.
+   449→            </AlertDescription>
+   450→          </Alert>
+   451→        )}
+   452→
+   453→        {/* ---------------- Basics ---------------- */}
+   454→        <FormSection title="Basics" description="The headline facts buyers see first.">
+   455→          <div className="grid gap-4">
+   456→            <div className="grid gap-1.5">
+   457→              <Label htmlFor="prop-title">Listing title</Label>
+   458→              <Input
+   459→                id="prop-title"
+   460→                value={form.title}
+   461→                onChange={(e) => setField("title", e.target.value)}
+   462→                placeholder="e.g. 3 BHK Apartment with Garden Views in Powai"
+   463→                aria-invalid={!!errors.title}
+   464→              />
+   465→              <FieldError message={errors.title} />
+   466→              <p className="text-xs text-muted-foreground">
+   467→                A clear title with the configuration and locality works best.
+   468→              </p>
+   469→            </div>
+   470→
+   471→            <div className="grid gap-1.5">
+   472→              <Label htmlFor="prop-description">Description</Label>
+   473→              <Textarea
+   474→                id="prop-description"
+   475→                rows={6}
+   476→                value={form.description}
+   477→                onChange={(e) => setField("description", e.target.value)}
+   478→                placeholder="Describe the home — layout, natural light, nearby schools and transit, society amenities, and what makes it special."
+   479→                aria-invalid={!!errors.description}
+   480→              />
+   481→              <div className="flex items-center justify-between">
+   482→                <FieldError message={errors.description} />
+   483→                <p
+   484→                  className={cn(
+   485→                    "text-xs",
+   486→                    descriptionLength < 50 ? "font-medium text-destructive" : "text-muted-foreground"
+   487→                  )}
+   488→                >
+   489→                  {descriptionLength} / 50 characters minimum
+   490→                </p>
+   491→              </div>
+   492→            </div>
+   493→
+   494→            <div className="grid gap-4 sm:grid-cols-2">
+   495→              <div className="grid gap-1.5">
+   496→                <Label htmlFor="prop-type">Property type</Label>
+   497→                <Select value={form.type} onValueChange={(v) => setField("type", v)}>
+   498→                  <SelectTrigger id="prop-type" className="w-full">
+   499→                    <SelectValue placeholder="Select type" />
+   500→                  </SelectTrigger>
+   501→                  <SelectContent>
+   502→                    {PROPERTY_TYPES.map((t) => (
+   503→                      <SelectItem key={t} value={t}>
+   504→                        {t}
+   505→                      </SelectItem>
+   506→                    ))}
+   507→                  </SelectContent>
+   508→                </Select>
+   509→              </div>
+   510→
+   511→              <div className="grid gap-1.5">
+   512→                <Label htmlFor="prop-price">Price (₹)</Label>
+   513→                <div className="relative">
+   514→                  <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
+   515→                    ₹
+   516→                  </span>
+   517→                  <Input
+   518→                    id="prop-price"
+   519→                    type="number"
+   520→                    min={500000}
+   521→                    step={1000}
+   522→                    inputMode="numeric"
+   523→                    className="pl-7"
+   524→                    value={form.price}
+   525→                    onChange={(e) => setField("price", e.target.value)}
+   526→                    placeholder="85,00,000"
+   527→                    aria-invalid={!!errors.price}
+   528→                  />
+   529→                </div>
+   530→                <FieldError message={errors.price} />
+   531→                <p className="text-xs text-muted-foreground">
+   532→                  {Number.isFinite(priceValue) && priceValue >= 500000
+   533→                    ? `Displayed as ${formatPriceFull(priceValue)}`
+   534→                    : "Minimum ₹5,00,000."}
+   535→                </p>
+   536→              </div>
+   537→            </div>
+   538→
+   539→            <div className="flex items-center justify-between gap-4 rounded-lg border bg-card p-3.5">
+   540→              <div>
+   541→                <Label htmlFor="prop-negotiable" className="text-sm">
+   542→                  Price is negotiable
+   543→                </Label>
+   544→                <p className="mt-0.5 text-xs text-muted-foreground">Buyers may propose a different price.</p>
+   545→              </div>
+   546→              <Switch
+   547→                id="prop-negotiable"
+   548→                checked={form.negotiable}
+   549→                onCheckedChange={(v) => setField("negotiable", v)}
+   550→                aria-label="Price is negotiable"
+   551→              />
+   552→            </div>
+   553→          </div>
+   554→        </FormSection>
+   555→
+   556→        {/* ---------------- Location ---------------- */}
+   557→        <FormSection title="Location" description="Where the property is located.">
+   558→          <div className="grid gap-4 sm:grid-cols-2">
+   559→            <div className="grid gap-1.5">
+   560→              <Label htmlFor="prop-city">City</Label>
+   561→              <Select
+   562→                value={form.city}
+   563→                onValueChange={(city) => {
+   564→                  const entry = CITIES.find((c) => c.city === city);
+   565→                  setForm((f) => ({
+   566→                    ...f,
+   567→                    city,
+   568→                    locality: entry?.localities.includes(f.locality) ? f.locality : "",
+   569→                  }));
+   570→                }}
+   571→              >
+   572→                <SelectTrigger id="prop-city" className="w-full" aria-invalid={!!errors.city}>
+   573→                  <SelectValue placeholder="Select city" />
+   574→                </SelectTrigger>
+   575→                <SelectContent>
+   576→                  {CITIES.map((c) => (
+   577→                    <SelectItem key={c.city} value={c.city}>
+   578→                      {c.city}
+   579→                    </SelectItem>
+   580→                  ))}
+   581→                </SelectContent>
+   582→              </Select>
+   583→              <FieldError message={errors.city} />
+   584→            </div>
+   585→
+   586→            <div className="grid gap-1.5">
+   587→              <Label htmlFor="prop-state">State</Label>
+   588→              <Input id="prop-state" readOnly value={cityEntry?.state ?? ""} placeholder="Auto-filled from city" />
+   589→            </div>
+   590→
+   591→            <div className="grid gap-1.5">
+   592→              <Label htmlFor="prop-locality">Locality</Label>
+   593→              <Select
+   594→                value={form.locality}
+   595→                onValueChange={(v) => setField("locality", v)}
+   596→                disabled={!form.city}
+   597→              >
+   598→                <SelectTrigger id="prop-locality" className="w-full" aria-invalid={!!errors.locality}>
+   599→                  <SelectValue placeholder={form.city ? "Select locality" : "Select a city first"} />
+   600→                </SelectTrigger>
+   601→                <SelectContent>
+   602→                  {(cityEntry?.localities ?? []).map((l) => (
+   603→                    <SelectItem key={l} value={l}>
+   604→                      {l}
+   605→                    </SelectItem>
+   606→                  ))}
+   607→                </SelectContent>
+   608→              </Select>
+   609→              <FieldError message={errors.locality} />
+   610→            </div>
+   611→
+   612→            <div className="grid gap-1.5 sm:col-span-2">
+   613→              <Label htmlFor="prop-address">Full address</Label>
+   614→              <Textarea
+   615→                id="prop-address"
+   616→                rows={2}
+   617→                value={form.address}
+   618→                onChange={(e) => setField("address", e.target.value)}
+   619→                placeholder="Flat / house number, building, street, landmarks"
+   620→                aria-invalid={!!errors.address}
+   621→              />
+   622→              <FieldError message={errors.address} />
+   623→            </div>
+   624→          </div>
+   625→
+   626→          <Collapsible open={coordsOpen} onOpenChange={setCoordsOpen}>
+   627→            <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80">
+   628→              <ChevronDown
+   629→                className={cn("size-4 transition-transform", coordsOpen && "rotate-180")}
+   630→                aria-hidden="true"
+   631→              />
+   632→              Add map coordinates
+   633→            </CollapsibleTrigger>
+   634→            <CollapsibleContent className="mt-3">
+   635→              <div className="grid gap-4 rounded-lg border bg-muted/40 p-3.5 sm:grid-cols-2">
+   636→                <div className="grid gap-1.5">
+   637→                  <Label htmlFor="prop-latitude">Latitude</Label>
+   638→                  <Input
+   639→                    id="prop-latitude"
+   640→                    type="number"
+   641→                    step="any"
+   642→                    value={form.latitude}
+   643→                    onChange={(e) => setField("latitude", e.target.value)}
+   644→                    placeholder="e.g. 19.1176"
+   645→                    aria-invalid={!!errors.latitude}
+   646→                  />
+   647→                  <FieldError message={errors.latitude} />
+   648→                </div>
+   649→                <div className="grid gap-1.5">
+   650→                  <Label htmlFor="prop-longitude">Longitude</Label>
+   651→                  <Input
+   652→                    id="prop-longitude"
+   653→                    type="number"
+   654→                    step="any"
+   655→                    value={form.longitude}
+   656→                    onChange={(e) => setField("longitude", e.target.value)}
+   657→                    placeholder="e.g. 72.9060"
+   658→                    aria-invalid={!!errors.longitude}
+   659→                  />
+   660→                  <FieldError message={errors.longitude} />
+   661→                </div>
+   662→                <p className="text-xs text-muted-foreground sm:col-span-2">
+   663→                  Optional — exact coordinates help buyers find the property on the map.
+   664→                </p>
+   665→              </div>
+   666→            </CollapsibleContent>
+   667→          </Collapsible>
+   668→        </FormSection>
+   669→
+   670→        {/* ---------------- Details ---------------- */}
+   671→        <FormSection title="Details" description="Configuration and condition of the property.">
+   672→          <div className="grid gap-4 sm:grid-cols-2">
+   673→            <div className="grid gap-1.5">
+   674→              <Label htmlFor="prop-bhk">Bedrooms (BHK)</Label>
+   675→              <Select value={form.bhk} onValueChange={(v) => setField("bhk", v)}>
+   676→                <SelectTrigger id="prop-bhk" className="w-full" aria-invalid={!!errors.bhk}>
+   677→                  <SelectValue placeholder="Select BHK" />
+   678→                </SelectTrigger>
+   679→                <SelectContent>
+   680→                  {BHK_OPTIONS.map((b) => (
+   681→                    <SelectItem key={b} value={b}>
+   682→                      {b} BHK
+   683→                    </SelectItem>
+   684→                  ))}
+   685→                  <SelectItem value="na">N/A (Plot)</SelectItem>
+   686→                </SelectContent>
+   687→              </Select>
+   688→              <FieldError message={errors.bhk} />
+   689→            </div>
+   690→
+   691→            <div className="grid gap-1.5">
+   692→              <Label htmlFor="prop-bathrooms">Bathrooms</Label>
+   693→              <Select value={form.bathrooms} onValueChange={(v) => setField("bathrooms", v)}>
+   694→                <SelectTrigger id="prop-bathrooms" className="w-full">
+   695→                  <SelectValue placeholder="Select bathrooms" />
+   696→                </SelectTrigger>
+   697→                <SelectContent>
+   698→                  {BATHROOM_OPTIONS.map((b) => (
+   699→                    <SelectItem key={b} value={b}>
+   700→                      {b}
+   701→                    </SelectItem>
+   702→                  ))}
+   703→                </SelectContent>
+   704→              </Select>
+   705→            </div>
+   706→
+   707→            <div className="grid gap-1.5">
+   708→              <Label htmlFor="prop-carpet">Carpet area (sq.ft)</Label>
+   709→              <Input
+   710→                id="prop-carpet"
+   711→                type="number"
+   712→                min={100}
+   713→                inputMode="numeric"
+   714→                value={form.carpetArea}
+   715→                onChange={(e) => setField("carpetArea", e.target.value)}
+   716→                placeholder="e.g. 950"
+   717→                aria-invalid={!!errors.carpetArea}
+   718→              />
+   719→              <FieldError message={errors.carpetArea} />
+   720→            </div>
+   721→
+   722→            <div className="grid gap-1.5">
+   723→              <Label htmlFor="prop-builtin">Built-up area (sq.ft)</Label>
+   724→              <Input
+   725→                id="prop-builtin"
+   726→                type="number"
+   727→                min={100}
+   728→                inputMode="numeric"
+   729→                value={form.builtUpArea}
+   730→                onChange={(e) => setField("builtUpArea", e.target.value)}
+   731→                placeholder="e.g. 1150"
+   732→                aria-invalid={!!errors.builtUpArea}
+   733→              />
+   734→              <FieldError message={errors.builtUpArea} />
+   735→            </div>
+   736→
+   737→            {isPlot && (
+   738→              <div className="grid gap-1.5 sm:col-span-2">
+   739→                <Label htmlFor="prop-plot">Plot area (sq.ft)</Label>
+   740→                <Input
+   741→                  id="prop-plot"
+   742→                  type="number"
+   743→                  min={100}
+   744→                  inputMode="numeric"
+   745→                  value={form.plotArea}
+   746→                  onChange={(e) => setField("plotArea", e.target.value)}
+   747→                  placeholder="e.g. 2400"
+   748→                  aria-invalid={!!errors.plotArea}
+   749→                />
+   750→                <FieldError message={errors.plotArea} />
+   751→              </div>
+   752→            )}
+   753→
+   754→            <div className="grid gap-1.5">
+   755→              <Label htmlFor="prop-furnishing">Furnishing</Label>
+   756→              <Select value={form.furnishing} onValueChange={(v) => setField("furnishing", v)}>
+   757→                <SelectTrigger id="prop-furnishing" className="w-full">
+   758→                  <SelectValue placeholder="Select furnishing" />
+   759→                </SelectTrigger>
+   760→                <SelectContent>
+   761→                  {FURNISHINGS.map((f) => (
+   762→                    <SelectItem key={f} value={f}>
+   763→                      {f}
+   764→                    </SelectItem>
+   765→                  ))}
+   766→                </SelectContent>
+   767→              </Select>
+   768→            </div>
+   769→
+   770→            <div className="grid gap-1.5">
+   771→              <Label htmlFor="prop-parking">Parking</Label>
+   772→              <Select value={form.parking} onValueChange={(v) => setField("parking", v)}>
+   773→                <SelectTrigger id="prop-parking" className="w-full">
+   774→                  <SelectValue placeholder="Select parking" />
+   775→                </SelectTrigger>
+   776→                <SelectContent>
+   777→                  {PARKING_OPTIONS.map((p) => (
+   778→                    <SelectItem key={p} value={p}>
+   779→                      {p === "0" ? "None" : `${p} car${p === "1" ? "" : "s"}`}
+   780→                    </SelectItem>
+   781→                  ))}
+   782→                </SelectContent>
+   783→              </Select>
+   784→            </div>
+   785→
+   786→            <div className="grid gap-1.5">
+   787→              <Label htmlFor="prop-floor">Floor</Label>
+   788→              <Input
+   789→                id="prop-floor"
+   790→                value={form.floorInfo}
+   791→                onChange={(e) => setField("floorInfo", e.target.value)}
+   792→                placeholder="e.g. 5 of 14"
+   793→                maxLength={30}
+   794→              />
+   795→            </div>
+   796→
+   797→            <div className="grid gap-1.5">
+   798→              <Label htmlFor="prop-facing">Facing</Label>
+   799→              <Select value={form.facing} onValueChange={(v) => setField("facing", v)}>
+   800→                <SelectTrigger id="prop-facing" className="w-full">
+   801→                  <SelectValue placeholder="Select facing" />
+   802→                </SelectTrigger>
+   803→                <SelectContent>
+   804→                  {FACING_OPTIONS.map((f) => (
+   805→                    <SelectItem key={f} value={f}>
+   806→                      {f}
+   807→                    </SelectItem>
+   808→                  ))}
+   809→                </SelectContent>
+   810→              </Select>
+   811→            </div>
+   812→
+   813→            <div className="grid gap-1.5">
+   814→              <Label htmlFor="prop-construction">Construction status</Label>
+   815→              <Select
+   816→                value={form.constructionStatus}
+   817→                onValueChange={(v) => setField("constructionStatus", v)}
+   818→              >
+   819→                <SelectTrigger id="prop-construction" className="w-full">
+   820→                  <SelectValue placeholder="Select status" />
+   821→                </SelectTrigger>
+   822→                <SelectContent>
+   823→                  {CONSTRUCTION_STATUSES.map((c) => (
+   824→                    <SelectItem key={c.value} value={c.value}>
+   825→                      {c.label}
+   826→                    </SelectItem>
+   827→                  ))}
+   828→                </SelectContent>
+   829→              </Select>
+   830→            </div>
+   831→
+   832→            {form.constructionStatus === "UNDER_CONSTRUCTION" && (
+   833→              <div className="grid gap-1.5">
+   834→                <Label htmlFor="prop-possession">Expected possession</Label>
+   835→                <Select value={form.possessionDate} onValueChange={(v) => setField("possessionDate", v)}>
+   836→                  <SelectTrigger id="prop-possession" className="w-full">
+   837→                    <SelectValue placeholder="Select period" />
+   838→                  </SelectTrigger>
+   839→                  <SelectContent>
+   840→                    {POSSESSION_PERIODS.map((p) => (
+   841→                      <SelectItem key={p} value={p}>
+   842→                        {p}
+   843→                      </SelectItem>
+   844→                    ))}
+   845→                  </SelectContent>
+   846→                </Select>
+   847→              </div>
+   848→            )}
+   849→
+   850→            {form.constructionStatus === "READY_TO_MOVE" && (
+   851→              <div className="grid gap-1.5">
+   852→                <Label htmlFor="prop-age">Age of property</Label>
+   853→                <Select value={form.ageOfProperty} onValueChange={(v) => setField("ageOfProperty", v)}>
+   854→                  <SelectTrigger id="prop-age" className="w-full">
+   855→                    <SelectValue placeholder="Select age" />
+   856→                  </SelectTrigger>
+   857→                  <SelectContent>
+   858→                    {AGE_OPTIONS.map((a) => (
+   859→                      <SelectItem key={a.value} value={a.value}>
+   860→                        {a.label}
+   861→                      </SelectItem>
+   862→                    ))}
+   863→                  </SelectContent>
+   864→                </Select>
+   865→              </div>
+   866→            )}
+   867→
+   868→            <div className="grid gap-1.5 sm:col-span-2">
+   869→              <Label htmlFor="prop-rera">
+   870→                RERA number <span className="font-normal text-muted-foreground">(optional)</span>
+   871→              </Label>
+   872→              <Input
+   873→                id="prop-rera"
+   874→                value={form.reraNumber}
+   875→                onChange={(e) => setField("reraNumber", e.target.value)}
+   876→                placeholder="e.g. P51800009999"
+   877→                maxLength={60}
+   878→              />
+   879→            </div>
+   880→          </div>
+   881→        </FormSection>
+   882→
+   883→        {/* ---------------- Amenities ---------------- */}
+   884→        <FormSection title="Amenities" description="Pick everything this property offers.">
+   885→          <div className="flex flex-wrap gap-2" role="group" aria-label="Amenities">
+   886→            {AMENITIES.map((a) => {
+   887→              const active = amenities.includes(a);
+   888→              return (
+   889→                <button
+   890→                  key={a}
+   891→                  type="button"
+   892→                  aria-pressed={active}
+   893→                  onClick={() =>
+   894→                    setAmenities((prev) => (active ? prev.filter((x) => x !== a) : [...prev, a]))
+   895→                  }
+   896→                  className={cn(
+   897→                    "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors",
+   898→                    active
+   899→                      ? "border-primary bg-primary text-primary-foreground"
+   900→                      : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+   901→                  )}
+   902→                >
+   903→                  {a}
+   904→                </button>
+   905→              );
+   906→            })}
+   907→          </div>
+   908→        </FormSection>
+   909→
+   910→        {/* ---------------- Photos ---------------- */}
+   911→        <FormSection
+   912→          title="Photos"
+   913→          description={`Up to ${MAX_PHOTOS} photos — the first one marked as main is used as the cover.`}
+   914→        >
+   915→          <FieldError message={errors.photos} />
+   916→
+   917→          <div
+   918→            role="button"
+   919→            tabIndex={0}
+   920→            aria-label="Upload photos"
+   921→            onClick={() => fileInputRef.current?.click()}
+   922→            onKeyDown={(e) => {
+   923→              if (e.key === "Enter" || e.key === " ") {
+   924→                e.preventDefault();
+   925→                fileInputRef.current?.click();
+   926→              }
+   927→            }}
+   928→            onDragOver={(e) => {
+   929→              e.preventDefault();
+   930→              setDragging(true);
+   931→            }}
+   932→            onDragLeave={() => setDragging(false)}
+   933→            onDrop={(e) => {
+   934→              e.preventDefault();
+   935→              setDragging(false);
+   936→              void handleFiles(e.dataTransfer.files);
+   937→            }}
+   938→            className={cn(
+   939→              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors",
+   940→              dragging
+   941→                ? "border-primary bg-accent"
+   942→                : "border-border bg-card hover:border-primary/50 hover:bg-accent/40"
+   943→            )}
+   944→          >
+   945→            <UploadCloud className="size-8 text-muted-foreground" aria-hidden="true" />
+   946→            <p className="text-sm font-medium text-foreground">
+   947→              Drag and drop photos here, or click to browse
+   948→            </p>
+   949→            <p className="text-xs text-muted-foreground">
+   950→              JPEG, PNG or WebP · up to {MAX_FILE_MB} MB each · max {MAX_PHOTOS} photos
+   951→            </p>
+   952→          </div>
+   953→
+   954→          <input
+   955→            ref={fileInputRef}
+   956→            type="file"
+   957→            accept="image/jpeg,image/png,image/webp"
+   958→            multiple
+   959→            className="hidden"
+   960→            onChange={(e) => {
+   961→              if (e.target.files && e.target.files.length > 0) void handleFiles(e.target.files);
+   962→              e.target.value = "";
+   963→            }}
+   964→          />
+   965→
+   966→          {uploads.length > 0 && (
+   967→            <div className="space-y-2.5">
+   968→              {uploads.map((u) => (
+   969→                <div key={u.id} className="rounded-lg border bg-card p-3">
+   970→                  <div className="flex items-center justify-between gap-2 text-xs">
+   971→                    <span className="truncate font-medium text-foreground">{u.name}</span>
+   972→                    <span className="shrink-0 text-muted-foreground">
+   973→                      {u.progress < 100 ? `${u.progress}%` : "Finishing…"}
+   974→                    </span>
+   975→                  </div>
+   976→                  <Progress value={u.progress} className="mt-2 h-1.5" aria-label={`Uploading ${u.name}`} />
+   977→                </div>
+   978→              ))}
+   979→            </div>
+   980→          )}
+   981→
+   982→          {images.length > 0 && (
+   983→            <RadioGroup
+   984→              value={String(mainIndex)}
+   985→              onValueChange={(v) => setMainIndex(Number(v))}
+   986→              className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+   987→              aria-label="Choose the main photo and arrange the order"
+   988→            >
+   989→              {images.map((img, i) => (
+   990→                <div key={`${img.url}-${i}`} className="overflow-hidden rounded-lg border bg-card">
+   991→                  <div className="relative aspect-[4/3] bg-muted">
+   992→                    <img
+   993→                      src={img.url}
+   994→                      alt={`Property photo ${i + 1}`}
+   995→                      loading="lazy"
+   996→                      className="size-full object-cover"
+   997→                    />
+   998→                    {i === mainIndex && (
+   999→                      <span className="absolute top-2 left-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+  1000→                        Main
+  1001→                      </span>
+  1002→                    )}
+  1003→                  </div>
+  1004→                  <div className="flex items-center justify-between border-t p-1">
+  1005→                    <div className="flex items-center">
+  1006→                      <Button
+  1007→                        type="button"
+  1008→                        variant="ghost"
+  1009→                        size="icon"
+  1010→                        className="size-7"
+  1011→                        disabled={i === 0}
+  1012→                        onClick={() => moveImage(i, -1)}
+  1013→                        aria-label={`Move photo ${i + 1} earlier`}
+  1014→                      >
+  1015→                        <ChevronLeft className="size-4" aria-hidden="true" />
+  1016→                      </Button>
+  1017→                      <Button
+  1018→                        type="button"
+  1019→                        variant="ghost"
+  1020→                        size="icon"
+  1021→                        className="size-7"
+  1022→                        disabled={i === images.length - 1}
+  1023→                        onClick={() => moveImage(i, 1)}
+  1024→                        aria-label={`Move photo ${i + 1} later`}
+  1025→                      >
+  1026→                        <ChevronRight className="size-4" aria-hidden="true" />
+  1027→                      </Button>
+  1028→                    </div>
+  1029→                    <Button
+  1030→                      type="button"
+  1031→                      variant="ghost"
+  1032→                      size="icon"
+  1033→                      className="size-7 text-destructive hover:text-destructive"
+  1034→                      onClick={() => removeImage(i)}
+  1035→                      aria-label={`Delete photo ${i + 1}`}
+  1036→                    >
+  1037→                      <Trash2 className="size-4" aria-hidden="true" />
+  1038→                    </Button>
+  1039→                  </div>
+  1040→                  <label
+  1041→                    htmlFor={`main-photo-${i}`}
+  1042→                    className="flex cursor-pointer items-center gap-2 border-t px-2 py-1.5 text-xs text-muted-foreground"
+  1043→                  >
+  1044→                    <RadioGroupItem id={`main-photo-${i}`} value={String(i)} className="size-3.5" />
+  1045→                    Use as main photo
+  1046→                  </label>
+  1047→                </div>
+  1048→              ))}
+  1049→            </RadioGroup>
+  1050→          )}
+  1051→        </FormSection>
+  1052→      </div>
+  1053→
+  1054→      {/* ---------------- Sticky footer ---------------- */}
+  1055→      <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+  1056→        {uploadingCount > 0 && (
+  1057→          <p className="mr-auto text-xs text-muted-foreground">
+  1058→            Uploading {uploadingCount} photo{uploadingCount === 1 ? "" : "s"} — please wait…
+  1059→          </p>
+  1060→        )}
+  1061→        <Button
+  1062→          type="button"
+  1063→          variant="outline"
+  1064→          onClick={onClose}
+  1065→          disabled={submitting !== null || uploadingCount > 0}
+  1066→        >
+  1067→          Cancel
+  1068→        </Button>
+  1069→        {canChooseDraft && (
+  1070→          <Button
+  1071→            type="button"
+  1072→            variant="outline"
+  1073→            onClick={() => void handleSubmit("draft")}
+  1074→            disabled={submitting !== null || uploadingCount > 0}
+  1075→          >
+  1076→            {submitting === "draft" && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+  1077→            Save as draft
+  1078→          </Button>
+  1079→        )}
+  1080→        <Button
+  1081→          type="button"
+  1082→          onClick={() => void handleSubmit("submit")}
+  1083→          disabled={submitting !== null || uploadingCount > 0}
+  1084→        >
+  1085→          {submitting === "submit" && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+  1086→          {primaryLabel}
+  1087→        </Button>
+  1088→      </div>
+  1089→    </div>
+  1090→  );
+  1091→}
+  1092→

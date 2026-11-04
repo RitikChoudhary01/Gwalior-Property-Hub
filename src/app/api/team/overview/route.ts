@@ -80,6 +80,7 @@ export async function GET() {
             lead: {
               select: { id: true, reference: true, name: true, property: { select: { title: true } } },
             },
+            user: { select: { id: true, name: true } },
           },
         }),
       ]);

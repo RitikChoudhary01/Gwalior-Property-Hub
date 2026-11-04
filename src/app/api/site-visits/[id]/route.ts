@@ -16,6 +16,8 @@ const patchSchema = z.object({
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   preferredTime: z.string().refine((t) => VISIT_TIME_SLOTS.includes(t)).optional(),
   notes: z.string().trim().max(500).optional(),
+  // admin-only: assign / change the team member coordinating the visit
+  assignedToId: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: Params) {
@@ -26,7 +28,11 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const visit = await db.siteVisit.findUnique({
       where: { id },
-      include: { property: { select: { sellerId: true, builderId: true, title: true } }, lead: { select: { assignedToId: true } } },
+      include: {
+        property: { select: { sellerId: true, builderId: true, title: true } },
+        lead: { select: { assignedToId: true } },
+        assignedTo: { select: { id: true } },
+      },
     });
     if (!visit) return fail("Visit not found.", 404);
 
@@ -35,7 +41,8 @@ export async function PATCH(req: Request, { params }: Params) {
       visit.property.sellerId === user.id ||
       (!!user.builderProfile && visit.property.builderId === user.builderProfile.id);
     const isBuyer = visit.buyerId === user.id;
-    const isAssignedTeam = user.role === "TEAM" && visit.lead?.assignedToId === user.id;
+    const isAssignedTeam =
+      user.role === "TEAM" && (visit.lead?.assignedToId === user.id || visit.assignedTo?.id === user.id);
 
     if (!isAdmin && !isListingOwner && !isBuyer && !isAssignedTeam) return fail("Not allowed.", 403);
 
@@ -57,6 +64,17 @@ export async function PATCH(req: Request, { params }: Params) {
     if (body.preferredTime) data.preferredTime = body.preferredTime;
     if (body.notes !== undefined) data.notes = body.notes;
 
+    if (body.assignedToId !== undefined) {
+      if (!isAdmin) return fail("Only administrators can assign site visits.", 403);
+      if (body.assignedToId) {
+        const assignee = await db.user.findUnique({ where: { id: body.assignedToId } });
+        if (!assignee || assignee.role !== "TEAM" || !assignee.isActive) {
+          return fail("Selected team member is not available.", 422);
+        }
+      }
+      data.assignedToId = body.assignedToId || null;
+    }
+
     const updated = await db.siteVisit.update({
       where: { id: visit.id },
       data,
@@ -65,6 +83,17 @@ export async function PATCH(req: Request, { params }: Params) {
 
     if (isListingOwner || isAdmin || isAssignedTeam) {
       await audit(user.id, "SITE_VISIT_UPDATED", "VISIT", visit.id, `Status → ${updated.status}`);
+    }
+
+    // notify the assigned team member about a newly coordinated visit
+    if (body.assignedToId && body.assignedToId !== visit.assignedTo?.id) {
+      await notify({
+        userId: body.assignedToId,
+        title: "Site visit assigned to you",
+        message: `You are coordinating ${updated.contactName}'s visit to "${visit.property.title}" on ${updated.preferredDate.toDateString()} at ${updated.preferredTime}.`,
+        type: "VISIT",
+        link: "#/dashboard?tab=visits",
+      });
     }
 
     // notify the buyer when the status changes

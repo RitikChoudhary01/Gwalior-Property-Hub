@@ -90,6 +90,9 @@ const patchSchema = z.object({
   rejectionReason: z.string().trim().max(500).optional(),
   availability: z.enum(["AVAILABLE", "RESERVED", "SOLD"]).optional(),
   featured: z.boolean().optional(),
+  // Listing verification (legal/document) — ADMIN only. Strictly separate
+  // from listing approval: approving a listing does NOT verify ownership.
+  verificationStatus: z.enum(["NONE", "REQUESTED", "VERIFIED", "REJECTED"]).optional(),
 });
 
 export async function PATCH(req: Request, { params }: Params) {
@@ -135,6 +138,13 @@ export async function PATCH(req: Request, { params }: Params) {
     if (typeof body.featured === "boolean") {
       if (!isAdmin) return fail("Only administrators can manage featured listings.", 403);
       data.featured = body.featured;
+    }
+
+    if (body.verificationStatus) {
+      if (!isAdmin) {
+        return fail("Only administrators can manage listing verification.", 403);
+      }
+      data.verificationStatus = body.verificationStatus;
     }
 
     // owner content edit on a PUBLISHED listing requires re-approval
@@ -191,6 +201,32 @@ export async function PATCH(req: Request, { params }: Params) {
         type: "LISTING",
         link: "#/dashboard?tab=listings",
       });
+    }
+    if (body.verificationStatus && isAdmin) {
+      const vs = body.verificationStatus;
+      await audit(user.id, "LISTING_VERIFICATION_" + vs, "PROPERTY", property.id, `"${property.title}"`);
+      const messages: Record<string, { title: string; message: string }> = {
+        REQUESTED: {
+          title: "Verification documents requested",
+          message: `Please share ownership documents for "${property.title}" so Vasati can verify this listing.`,
+        },
+        VERIFIED: {
+          title: "Listing verified",
+          message: `"${property.title}" is now Vasati Verified — ownership documents reviewed. Verified listings earn more buyer trust.`,
+        },
+        REJECTED: {
+          title: "Verification could not be completed",
+          message: `We could not verify the documents for "${property.title}". Our team will contact you with details.`,
+        },
+        NONE: {
+          title: "Verification reset",
+          message: `Verification state for "${property.title}" was reset.`,
+        },
+      };
+      const m = messages[vs];
+      if (m) {
+        await notify({ userId: property.sellerId, ...m, type: "LISTING", link: "#/dashboard?tab=listings" });
+      }
     }
     if (contentChanged && data.status === "PENDING" && !isAdmin && property.status === "PUBLISHED") {
       await notifyAdmins({

@@ -2,12 +2,13 @@
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, ShieldAlert } from "lucide-react";
+import { CheckCircle2, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
   LEAD_STATUSES,
   VISIT_STATUSES,
   PROPERTY_STATUSES,
   TRANSACTION_STATUSES,
+  REQUIREMENT_STATUSES,
 } from "@/lib/constants";
 
 const FALLBACK_TONES: Record<string, string> = {
@@ -28,6 +29,8 @@ const FALLBACK_TONES: Record<string, string> = {
   COMPLETED: "bg-stone-200 text-stone-700",
   CANCELLED: "bg-rose-100 text-rose-800",
   NEW: "bg-sky-100 text-sky-800",
+  VERIFIED: "bg-emerald-100 text-emerald-800",
+  NONE: "bg-stone-100 text-stone-600",
 };
 
 function labelFor(status: string): string {
@@ -35,12 +38,19 @@ function labelFor(status: string): string {
   for (const s of VISIT_STATUSES) if (s.value === status) return s.label;
   for (const s of PROPERTY_STATUSES) if (s.value === status) return s.label;
   for (const s of TRANSACTION_STATUSES) if (s.value === status) return s.label;
+  for (const s of REQUIREMENT_STATUSES) if (s.value === status) return s.label;
   if (status === "PAYMENT_PENDING") return "Payment Pending";
+  if (status === "VERIFIED") return "Vasati Verified";
+  if (status === "REQUESTED") return "Verification Requested";
+  if (status === "NONE") return "Not verified";
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+const REQUIREMENT_TONES = Object.fromEntries(REQUIREMENT_STATUSES.map((s) => [s.value, s.tone]));
+
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
   const tone =
+    REQUIREMENT_TONES[status] ??
     LEAD_STATUSES.find((s) => s.value === status)?.tone ??
     VISIT_STATUSES.find((s) => s.value === status)?.tone ??
     FALLBACK_TONES[status] ??
@@ -70,6 +80,41 @@ export function VerifiedBadge({ verified, label = "Verified" }: { verified: bool
     <Badge className="gap-1 bg-white/90 text-emerald-800 border border-emerald-300 hover:bg-white/90">
       <CheckCircle2 className="size-3 text-emerald-600" aria-hidden="true" />
       {label}
+    </Badge>
+  );
+}
+
+/**
+ * Listing-level legal verification badge. Shown ONLY when Vasati has
+ * actually completed document verification for this specific listing
+ * (Property.verificationStatus === "VERIFIED"). Identity / RERA checks
+ * on the seller do NOT qualify — those use VerifiedBadge with an
+ * identity-scoped label instead.
+ */
+export function ListingVerifiedBadge({ className }: { className?: string }) {
+  return (
+    <Badge
+      className={cn(
+        "gap-1 border border-emerald-300 bg-white/90 text-emerald-800 shadow-sm hover:bg-white/90",
+        className
+      )}
+      title="Ownership documents reviewed by Vasati"
+    >
+      <ShieldCheck className="size-3.5 text-emerald-600" aria-hidden="true" />
+      Vasati Verified
+    </Badge>
+  );
+}
+
+/** Neutral chip for an in-progress listing verification. */
+export function VerificationPendingBadge({ className }: { className?: string }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn("gap-1 bg-white/90 text-stone-600 border-stone-300", className)}
+    >
+      <ShieldAlert className="size-3.5 text-amber-600" aria-hidden="true" />
+      Verification in progress
     </Badge>
   );
 }

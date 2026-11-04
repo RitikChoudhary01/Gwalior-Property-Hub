@@ -52,6 +52,7 @@ export interface PropertyCardDTO {
   constructionStatus: string;
   availability: string;
   status: string;
+  verificationStatus: string; // listing-level legal verification (NONE | REQUESTED | VERIFIED | REJECTED)
   featured: boolean;
   views: number;
   createdAt: string;
@@ -188,6 +189,7 @@ export interface SiteVisitDTO {
   preferredTime: string;
   contactName: string;
   contactPhone: string;
+  assignedTo: { id: string; name: string } | null;
   status: string;
   notes: string | null;
   createdAt: string;
@@ -202,6 +204,53 @@ export interface SiteVisitDTO {
     mainImage: string | null;
     ownerName: string;
   };
+}
+
+// Buyer requirement ("Post Your Requirement")
+export interface RequirementDTO {
+  id: string;
+  reference: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  purpose: string; // BUY | RENT
+  city: string;
+  localities: string[];
+  propertyType: string;
+  bhk: number | null;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  notes: string | null;
+  source: string;
+  status: string; // NEW | MATCHED | CONTACTED | QUALIFIED | CONVERTED | LOST
+  assignedTo: { id: string; name: string } | null;
+  buyer: { id: string; name: string; email: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  // present in list responses
+  matchCount?: number;
+  topMatch?: string | null;
+}
+
+export interface RequirementMatchDTO {
+  id: string;
+  slug: string;
+  title: string;
+  type: string;
+  price: number;
+  city: string;
+  locality: string;
+  bhk: number | null;
+  bathrooms: number | null;
+  carpetArea: number | null;
+  builtUpArea: number | null;
+  constructionStatus: string;
+  availability: string;
+  reraNumber: string | null;
+  verificationStatus: string;
+  mainImage: string | null;
+  score: number; // 0–100 match score
+  reasons: string[]; // why this property matches
 }
 
 export interface NotificationDTO {

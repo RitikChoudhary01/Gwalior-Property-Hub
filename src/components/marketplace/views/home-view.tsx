@@ -18,10 +18,12 @@ import {
   Search,
   MessageSquare,
   Handshake,
+  PhoneCall,
   PlusCircle,
   ShieldCheck,
   Inbox,
   LineChart,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +34,7 @@ import { formatNumber } from "@/lib/format";
 import type { Paginated, ProjectCardDTO, PropertyCardDTO } from "@/lib/types";
 import { PropertyCard } from "../shared/property-card";
 import { ProjectCard } from "../shared/project-card";
+import { RequirementForm } from "../shared/requirement-form";
 import { SearchBar } from "../shared/search-bar";
 import { SectionHeading } from "../shared/section";
 
@@ -368,6 +371,68 @@ export function HomeView() {
               ))}
             </ol>
           </motion.div>
+        </div>
+      </section>
+
+      {/* ============ Post your requirement (buyer CTA) ============ */}
+      <section
+        className="mt-16 w-full bg-secondary/40 sm:mt-20"
+        aria-labelledby="requirement-cta-heading"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
+            <motion.div {...fadeUp} className="max-w-xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Post your requirement
+              </p>
+              <h2
+                id="requirement-cta-heading"
+                className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
+              >
+                Can&rsquo;t find the right home? Tell us what you need.
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+                Post your requirement — our team searches approved inventory on and off the market
+                and calls you with matches. Describe your dream home once, even if it isn&rsquo;t
+                listed yet.
+              </p>
+              <ul className="mt-8 space-y-5">
+                {[
+                  {
+                    icon: Sparkles,
+                    title: "Instant matches",
+                    text: "See scored matches from approved inventory the moment you post.",
+                  },
+                  {
+                    icon: PhoneCall,
+                    title: "A human advisor",
+                    text: "One dedicated advisor calls you within 24 hours — no call centres, no spam.",
+                  },
+                  {
+                    icon: ShieldCheck,
+                    title: "Verified homes only",
+                    text: "Every option we bring you is from verified owners and reputed builders.",
+                  },
+                ].map((f) => (
+                  <li key={f.title} className="flex gap-3.5">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <f.icon className="size-4.5" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <p className="text-[15px] font-semibold text-foreground">{f.title}</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{f.text}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+            <motion.div
+              {...fadeUp}
+              className="rounded-xl border bg-card p-4 shadow-sm sm:p-6 lg:mt-1"
+            >
+              <RequirementForm idPrefix="home-req" />
+            </motion.div>
+          </div>
         </div>
       </section>
 

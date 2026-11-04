@@ -12,6 +12,7 @@ import {
   Eye,
   Home,
   Loader2,
+  ShieldCheck,
   Star,
   StarOff,
   X,
@@ -37,6 +38,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "../../../shared/section";
 import { StatusBadge } from "../../../shared/status-badge";
@@ -254,6 +263,7 @@ export function AdminProperties() {
                     <TableHead>Price</TableHead>
                     <TableHead>Listed by</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Verification</TableHead>
                     <TableHead>Submitted</TableHead>
                     <TableHead className="text-right">Views</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -290,6 +300,74 @@ export function AdminProperties() {
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={p.status} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge
+                              status={
+                                p.verificationStatus === "VERIFIED"
+                                  ? "VERIFIED"
+                                  : p.verificationStatus === "REQUESTED"
+                                    ? "REQUESTED"
+                                    : "NONE"
+                              }
+                            />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 gap-1 px-2 text-xs"
+                                  disabled={busyId === p.id}
+                                  aria-label={`Verification actions for ${p.title}`}
+                                >
+                                  <ShieldCheck className="size-3.5" aria-hidden="true" />
+                                  Manage
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-60">
+                                <DropdownMenuLabel>Listing verification</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  disabled={p.verificationStatus === "VERIFIED"}
+                                  onClick={() =>
+                                    patchProperty(
+                                      p,
+                                      { verificationStatus: "VERIFIED" },
+                                      "Listing marked Vasati Verified"
+                                    )
+                                  }
+                                >
+                                  <ShieldCheck className="size-4 text-emerald-600" aria-hidden="true" />
+                                  Mark verified (docs reviewed)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={p.verificationStatus === "REQUESTED"}
+                                  onClick={() =>
+                                    patchProperty(
+                                      p,
+                                      { verificationStatus: "REQUESTED" },
+                                      "Verification documents requested"
+                                    )
+                                  }
+                                >
+                                  Request ownership documents
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={!p.verificationStatus || p.verificationStatus === "NONE"}
+                                  onClick={() =>
+                                    patchProperty(
+                                      p,
+                                      { verificationStatus: "NONE" },
+                                      "Verification reset"
+                                    )
+                                  }
+                                >
+                                  Reset verification
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDate(p.createdAt)}

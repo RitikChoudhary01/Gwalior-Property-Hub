@@ -31,7 +31,7 @@ export function VisitDialog({
   property,
   children,
 }: {
-  property: Pick<PropertyCardDTO, "id" | "title" | "city">;
+  property: Pick<PropertyCardDTO, "id" | "title" | "city" | "locality">;
   children?: React.ReactNode;
 }) {
   const user = useAppStore((s) => s.user);

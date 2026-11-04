@@ -65,6 +65,8 @@ export async function POST(req: Request) {
           contactPhone: body.contactPhone || lead.phone,
           notes: body.notes ?? null,
           status: "CONFIRMED", // arranged directly with the buyer
+          // the team member who schedules the visit coordinates it
+          assignedToId: user.role === "TEAM" ? user.id : lead.assignedToId,
         },
         include: visitInclude,
       });
@@ -177,8 +179,9 @@ export async function GET(req: Request) {
     if (user.role === "ADMIN") {
       // all
     } else if (user.role === "TEAM") {
-      // team members coordinate visits for their assigned leads
-      where.lead = { assignedToId: user.id };
+      // team members coordinate visits for their assigned leads AND
+      // visits explicitly assigned to them
+      where.OR = [{ lead: { assignedToId: user.id } }, { assignedToId: user.id }];
     } else if (user.role === "BUYER") {
       where.buyerId = user.id;
     } else if (user.role === "SELLER") {

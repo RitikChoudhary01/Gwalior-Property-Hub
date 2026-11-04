@@ -1,0 +1,1229 @@
+     1→"use client";
+     2→
+     3→// ============================================================
+     4→// TeamDashboard — the internal operations workspace for Vasati
+     5→// team members (invite-only accounts). Members see exclusively
+     6→// the leads assigned to them (enforced server-side) and manage
+     7→// the full operational cycle: contact buyers, update statuses,
+     8→// follow-up notes, site visits, tasks and activity history.
+     9→// Tabs: overview / leads / visits / tasks / activity / profile.
+    10→// ============================================================
+    11→
+    12→import { useCallback, useEffect, useMemo, useState } from "react";
+    13→import { toast } from "sonner";
+    14→import {
+    15→  Activity,
+    16→  ArrowRight,
+    17→  CalendarClock,
+    18→  CalendarDays,
+    19→  CheckCircle2,
+    20→  Clock,
+    21→  ExternalLink,
+    22→  History,
+    23→  Inbox,
+    24→  LayoutDashboard,
+    25→  ListChecks,
+    26→  Loader2,
+    27→  Mail,
+    28→  MessageSquareText,
+    29→  Phone,
+    30→  Search,
+    31→  Send,
+    32→  StickyNote,
+    33→  UserRound,
+    34→  Users,
+    35→} from "lucide-react";
+    36→import { api, ApiError } from "@/lib/api-client";
+    37→import { useAppStore } from "@/store/use-app-store";
+    38→import { cn } from "@/lib/utils";
+    39→import { LEAD_STATUSES, ROLE_LABELS, VISIT_TIME_SLOTS } from "@/lib/constants";
+    40→import { formatDate, formatDateTime, formatMonthYear, formatPrice } from "@/lib/format";
+    41→import type {
+    42→  LeadActivityDTO,
+    43→  LeadDTO,
+    44→  Paginated,
+    45→  SiteVisitDTO,
+    46→  TeamOverviewDTO,
+    47→  TeamTaskDTO,
+    48→} from "@/lib/types";
+    49→import { EmptyState, StatCard } from "../../shared/section";
+    50→import { StatusBadge } from "../../shared/status-badge";
+    51→import {
+    52→  AdminCard,
+    53→  AvatarInitials,
+    54→  ChipBar,
+    55→  CountBar,
+    56→  FilterBar,
+    57→  ImgThumb,
+    58→  LoadError,
+    59→  TablePager,
+    60→  TableSkeleton,
+    61→  TabIntro,
+    62→  VisitsBoard,
+    63→  qs,
+    64→  runAction,
+    65→  useApiData,
+    66→  useDashboardTab,
+    67→  useDebounced,
+    68→} from "./admin/parts-shared";
+    69→import { Button } from "@/components/ui/button";
+    70→import {
+    71→  Dialog,
+    72→  DialogContent,
+    73→  DialogDescription,
+    74→  DialogFooter,
+    75→  DialogHeader,
+    76→  DialogTitle,
+    77→} from "@/components/ui/dialog";
+    78→import { Input } from "@/components/ui/input";
+    79→import { Label } from "@/components/ui/label";
+    80→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    81→import { Skeleton } from "@/components/ui/skeleton";
+    82→import {
+    83→  Table,
+    84→  TableBody,
+    85→  TableCell,
+    86→  TableHead,
+    87→  TableHeader,
+    88→  TableRow,
+    89→} from "@/components/ui/table";
+    90→import { Textarea } from "@/components/ui/textarea";
+    91→
+    92→const TEAM_TABS = [
+    93→  { id: "overview", label: "Overview", icon: LayoutDashboard },
+    94→  { id: "leads", label: "My leads", icon: Inbox },
+    95→  { id: "visits", label: "Site visits", icon: CalendarDays },
+    96→  { id: "tasks", label: "Tasks", icon: ListChecks },
+    97→  { id: "activity", label: "My activity", icon: History },
+    98→  { id: "profile", label: "Profile", icon: UserRound },
+    99→] as const;
+   100→
+   101→const TEAM_TAB_IDS = TEAM_TABS.map((t) => t.id);
+   102→
+   103→function leadStatusLabel(status: string): string {
+   104→  return LEAD_STATUSES.find((s) => s.value === status)?.label ?? status;
+   105→}
+   106→
+   107→function activityIcon(type: string) {
+   108→  const t = type.toUpperCase();
+   109→  if (t.includes("NOTE") || t.includes("COMMENT")) return StickyNote;
+   110→  if (t.includes("STATUS")) return Activity;
+   111→  if (t.includes("ASSIGN")) return Users;
+   112→  if (t.includes("CONTACT") || t.includes("CALL")) return Phone;
+   113→  if (t.includes("VISIT")) return CalendarDays;
+   114→  return Activity;
+   115→}
+   116→
+   117→const TASK_META: Record<TeamTaskDTO["kind"], { tone: string; chip: string }> = {
+   118→  FOLLOW_UP_DUE: { tone: "text-rose-700", chip: "bg-rose-100 text-rose-800" },
+   119→  FOLLOW_UP_TODAY: { tone: "text-amber-700", chip: "bg-amber-100 text-amber-800" },
+   120→  VISIT_TO_CONFIRM: { tone: "text-teal-700", chip: "bg-teal-100 text-teal-800" },
+   121→  VISIT_UPCOMING: { tone: "text-cyan-700", chip: "bg-cyan-100 text-cyan-800" },
+   122→  NEW_UNCONTACTED: { tone: "text-stone-700", chip: "bg-stone-200 text-stone-700" },
+   123→};
+   124→
+   125→const TASK_LABELS: Record<TeamTaskDTO["kind"], string> = {
+   126→  FOLLOW_UP_DUE: "Follow-up overdue",
+   127→  FOLLOW_UP_TODAY: "Follow-up today",
+   128→  VISIT_TO_CONFIRM: "Confirm visit",
+   129→  VISIT_UPCOMING: "Upcoming visit",
+   130→  NEW_UNCONTACTED: "First contact",
+   131→};
+   132→
+   133→// ============================================================
+   134→// Schedule-visit dialog (team schedules on behalf of a lead)
+   135→// ============================================================
+   136→
+   137→function ScheduleVisitDialog({
+   138→  lead,
+   139→  onClose,
+   140→  onDone,
+   141→}: {
+   142→  lead: LeadDTO;
+   143→  onClose: () => void;
+   144→  onDone: () => void;
+   145→}) {
+   146→  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+   147→  const [date, setDate] = useState(tomorrow);
+   148→  const [time, setTime] = useState("11:00 AM");
+   149→  const [notes, setNotes] = useState("");
+   150→  const [busy, setBusy] = useState(false);
+   151→  const [error, setError] = useState<string | null>(null);
+   152→
+   153→  async function submit() {
+   154→    if (!date || !time) {
+   155→      setError("Pick a date and time slot for the visit.");
+   156→      return;
+   157→    }
+   158→    setBusy(true);
+   159→    setError(null);
+   160→    try {
+   161→      await api("/api/site-visits", {
+   162→        method: "POST",
+   163→        body: JSON.stringify({
+   164→          propertyId: lead.property.id,
+   165→          leadId: lead.id,
+   166→          contactName: lead.name,
+   167→          contactPhone: lead.phone,
+   168→          preferredDate: date,
+   169→          preferredTime: time,
+   170→          notes: notes.trim() || undefined,
+   171→        }),
+   172→      });
+   173→      toast.success("Site visit scheduled", {
+   174→        description: `${lead.name} · ${formatDate(date)} at ${time}`,
+   175→      });
+   176→      onClose();
+   177→      onDone();
+   178→    } catch (err) {
+   179→      setError(err instanceof ApiError ? err.message : "Could not schedule the visit.");
+   180→    } finally {
+   181→      setBusy(false);
+   182→    }
+   183→  }
+   184→
+   185→  return (
+   186→    <Dialog open onOpenChange={(open) => !open && onClose()}>
+   187→      <DialogContent className="sm:max-w-md">
+   188→        <DialogHeader>
+   189→          <DialogTitle>Schedule site visit</DialogTitle>
+   190→          <DialogDescription>
+   191→            Arrange a visit for {lead.name} to “{lead.property.title}” ({lead.property.locality},{" "}
+   192→            {lead.property.city}).
+   193→          </DialogDescription>
+   194→        </DialogHeader>
+   195→        <div className="grid gap-4">
+   196→          <div className="grid gap-2">
+   197→            <Label htmlFor="sv-date">Date</Label>
+   198→            <Input
+   199→              id="sv-date"
+   200→              type="date"
+   201→              value={date}
+   202→              min={new Date().toISOString().slice(0, 10)}
+   203→              onChange={(e) => {
+   204→                setDate(e.target.value);
+   205→                setError(null);
+   206→              }}
+   207→            />
+   208→          </div>
+   209→          <div className="grid gap-2">
+   210→            <Label htmlFor="sv-time">Time slot</Label>
+   211→            <Select value={time} onValueChange={setTime}>
+   212→              <SelectTrigger id="sv-time" className="w-full">
+   213→                <SelectValue />
+   214→              </SelectTrigger>
+   215→              <SelectContent>
+   216→                {VISIT_TIME_SLOTS.map((slot) => (
+   217→                  <SelectItem key={slot} value={slot}>
+   218→                    {slot}
+   219→                  </SelectItem>
+   220→                ))}
+   221→              </SelectContent>
+   222→            </Select>
+   223→          </div>
+   224→          <div className="grid gap-2">
+   225→            <Label htmlFor="sv-notes">Notes (optional)</Label>
+   226→            <Textarea
+   227→              id="sv-notes"
+   228→              value={notes}
+   229→              onChange={(e) => setNotes(e.target.value)}
+   230→              placeholder="Anything the listing owner should prepare…"
+   231→              rows={2}
+   232→            />
+   233→          </div>
+   234→          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+   235→        </div>
+   236→        <DialogFooter>
+   237→          <Button variant="outline" onClick={onClose}>
+   238→            Cancel
+   239→          </Button>
+   240→          <Button onClick={submit} disabled={busy}>
+   241→            {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <CalendarClock className="size-4" aria-hidden="true" />}
+   242→            Schedule visit
+   243→          </Button>
+   244→        </DialogFooter>
+   245→      </DialogContent>
+   246→    </Dialog>
+   247→  );
+   248→}
+   249→
+   250→// ============================================================
+   251→// Lead detail dialog — team edition
+   252→// ============================================================
+   253→
+   254→interface LeadDetail {
+   255→  lead: LeadDTO;
+   256→  activities: LeadActivityDTO[];
+   257→  visits: SiteVisitDTO[];
+   258→}
+   259→
+   260→function TeamLeadDialog({
+   261→  leadId,
+   262→  onOpenChange,
+   263→  onChanged,
+   264→}: {
+   265→  leadId: string;
+   266→  onOpenChange: (open: boolean) => void;
+   267→  onChanged: () => void;
+   268→}) {
+   269→  const navigate = useAppStore((s) => s.navigate);
+   270→  const [detail, setDetail] = useState<LeadDetail | null>(null);
+   271→  const [loading, setLoading] = useState(true);
+   272→  const [error, setError] = useState<string | null>(null);
+   273→  const [note, setNote] = useState("");
+   274→  const [followUp, setFollowUp] = useState("");
+   275→  const [busy, setBusy] = useState(false);
+   276→  const [scheduling, setScheduling] = useState(false);
+   277→
+   278→  const load = useCallback(async () => {
+   279→    setLoading(true);
+   280→    setError(null);
+   281→    try {
+   282→      const res = await api<LeadDetail>(`/api/leads/${leadId}`);
+   283→      setDetail(res);
+   284→      setFollowUp(res.lead.followUpDate ? res.lead.followUpDate.slice(0, 10) : "");
+   285→    } catch (err) {
+   286→      setError(err instanceof ApiError ? err.message : "Could not load this lead.");
+   287→    } finally {
+   288→      setLoading(false);
+   289→    }
+   290→  }, [leadId]);
+   291→
+   292→  useEffect(() => {
+   293→    void load();
+   294→  }, [load]);
+   295→
+   296→  async function patch(body: Record<string, unknown>, success: string, description?: string) {
+   297→    setBusy(true);
+   298→    const ok = await runAction(
+   299→      () =>
+   300→        api(`/api/leads/${leadId}`, {
+   301→          method: "PATCH",
+   302→          body: JSON.stringify(body),
+   303→        }),
+   304→      success,
+   305→      { description }
+   306→    );
+   307→    setBusy(false);
+   308→    if (ok) {
+   309→      await load();
+   310→      onChanged();
+   311→    }
+   312→    return ok;
+   313→  }
+   314→
+   315→  const lead = detail?.lead;
+   316→
+   317→  return (
+   318→    <Dialog open onOpenChange={onOpenChange}>
+   319→      <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+   320→        <DialogHeader className="border-b px-6 pt-6 pb-4">
+   321→          <div className="flex flex-wrap items-center gap-2 pr-6">
+   322→            <DialogTitle className="font-display text-xl">{lead ? lead.name : "Lead details"}</DialogTitle>
+   323→            {lead ? <StatusBadge status={lead.status} /> : null}
+   324→          </div>
+   325→          <DialogDescription>
+   326→            {lead ? `${lead.reference} · Enquiry on ${lead.property.title}` : "Loading lead…"}
+   327→          </DialogDescription>
+   328→        </DialogHeader>
+   329→
+   330→        {loading && !detail ? (
+   331→          <div className="space-y-3 px-6 py-6">
+   332→            <Skeleton className="h-20 w-full rounded-lg" />
+   333→            <Skeleton className="h-40 w-full rounded-lg" />
+   334→          </div>
+   335→        ) : error ? (
+   336→          <div className="px-6 py-6">
+   337→            <EmptyState
+   338→              icon={<Inbox className="size-6" aria-hidden="true" />}
+   339→              title="Could not load lead"
+   340→              description={error}
+   341→              action={
+   342→                <Button variant="outline" onClick={() => void load()}>
+   343→                  Try again
+   344→                </Button>
+   345→              }
+   346→            />
+   347→          </div>
+   348→        ) : lead ? (
+   349→          <>
+   350→            <div className="vasati-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
+   351→              {/* Contact + property */}
+   352→              <div className="grid gap-4 sm:grid-cols-2">
+   353→                <div className="grid gap-3 rounded-lg border bg-card p-3.5">
+   354→                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Buyer contact</p>
+   355→                  <div className="flex items-center gap-3">
+   356→                    <AvatarInitials name={lead.name} />
+   357→                    <div className="min-w-0">
+   358→                      <p className="truncate text-sm font-medium text-foreground">{lead.name}</p>
+   359→                      <a href={`tel:${lead.phone}`} className="text-xs text-primary hover:underline">
+   360→                                        {lead.phone}
+   361→                      </a>
+   362→                    </div>
+   363→                  </div>
+   364→                  {lead.email ? (
+   365→                    <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 truncate text-xs text-primary hover:underline">
+   366→                      <Mail className="size-3 shrink-0" aria-hidden="true" />
+   367→                      {lead.email}
+   368→                    </a>
+   369→                  ) : null}
+   370→                  {lead.budget ? (
+   371→                    <p className="text-xs text-muted-foreground">
+   372→                      Budget: <span className="font-medium text-foreground">{formatPrice(lead.budget)}</span>
+   373→                    </p>
+   374→                  ) : null}
+   375→                  <p className="text-xs text-muted-foreground">Received {formatDateTime(lead.createdAt)}</p>
+   376→                  {lead.lastContactedAt ? (
+   377→                    <p className="text-xs text-muted-foreground">Last contacted {formatDateTime(lead.lastContactedAt)}</p>
+   378→                  ) : null}
+   379→                  <div className="flex flex-wrap gap-2 pt-1">
+   380→                    <Button size="sm" asChild variant="outline">
+   381→                      <a href={`tel:${lead.phone}`}>
+   382→                        <Phone className="size-4" aria-hidden="true" />
+   383→                        Call buyer
+   384→                      </a>
+   385→                    </Button>
+   386→                    {lead.email ? (
+   387→                      <Button size="sm" asChild variant="outline">
+   388→                        <a href={`mailto:${lead.email}?subject=Your%20Vasati%20enquiry%20${lead.reference}`}>
+   389→                          <Mail className="size-4" aria-hidden="true" />
+   390→                          Email
+   391→                        </a>
+   392→                      </Button>
+   393→                    ) : null}
+   394→                  </div>
+   395→                </div>
+   396→
+   397→                <div className="grid gap-3 rounded-lg border bg-card p-3.5">
+   398→                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Property enquiry</p>
+   399→                  <button
+   400→                    type="button"
+   401→                    onClick={() => {
+   402→                      onOpenChange(false);
+   403→                      navigate(`/properties/${lead.property.slug}`);
+   404→                    }}
+   405→                    className="flex items-center gap-3 rounded-lg border bg-card p-2.5 text-left transition-colors hover:border-primary/40"
+   406→                  >
+   407→                    <ImgThumb src={lead.property.mainImage} alt="" className="size-10 rounded-lg" />
+   408→                    <div className="min-w-0 flex-1">
+   409→                      <p className="truncate text-sm font-medium text-foreground">{lead.property.title}</p>
+   410→                      <p className="truncate text-xs text-muted-foreground">
+   411→                        {lead.property.locality}, {lead.property.city} · {formatPrice(lead.property.price)}
+   412→                      </p>
+   413→                    </div>
+   414→                    <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+   415→                  </button>
+   416→                  <p className="text-xs text-muted-foreground">Listed by {lead.property.ownerName}</p>
+   417→                  {lead.message ? (
+   418→                    <p className="rounded-md bg-muted px-3 py-2 text-xs italic leading-relaxed text-foreground">
+   419→                      “{lead.message}”
+   420→                    </p>
+   421→                  ) : null}
+   422→                </div>
+   423→              </div>
+   424→
+   425→              {/* Actions */}
+   426→              <div className="grid gap-4 rounded-lg border bg-card p-3.5">
+   427→                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Work the lead</p>
+   428→                <div className="grid gap-4 sm:grid-cols-2">
+   429→                  <div className="grid gap-2">
+   430→                    <Label htmlFor="tl-status">Pipeline status</Label>
+   431→                    <Select
+   432→                      value={lead.status}
+   433→                      onValueChange={(v) => patch({ status: v }, "Status updated", leadStatusLabel(v))}
+   434→                      disabled={busy}
+   435→                    >
+   436→                      <SelectTrigger id="tl-status" className="w-full">
+   437→                        <SelectValue />
+   438→                      </SelectTrigger>
+   439→                      <SelectContent>
+   440→                        {LEAD_STATUSES.map((s) => (
+   441→                          <SelectItem key={s.value} value={s.value}>
+   442→                            {s.label}
+   443→                          </SelectItem>
+   444→                        ))}
+   445→                      </SelectContent>
+   446→                    </Select>
+   447→                  </div>
+   448→                  <div className="grid gap-2">
+   449→                    <Label htmlFor="tl-followup">Follow-up date</Label>
+   450→                    <div className="flex gap-2">
+   451→                      <Input
+   452→                        id="tl-followup"
+   453→                        type="date"
+   454→                        value={followUp}
+   455→                        onChange={(e) => setFollowUp(e.target.value)}
+   456→                      />
+   457→                      <Button
+   458→                        variant="outline"
+   459→                        disabled={busy || !followUp || followUp === (lead.followUpDate ?? "").slice(0, 10)}
+   460→                        onClick={() =>
+   461→                          patch(
+   462→                            { followUpDate: new Date(`${followUp}T09:00:00`).toISOString() },
+   463→                            "Follow-up date saved",
+   464→                            formatDate(followUp)
+   465→                          )
+   466→                        }
+   467→                      >
+   468→                        Save
+   469→                      </Button>
+   470→                      {lead.followUpDate ? (
+   471→                        <Button
+   472→                          variant="ghost"
+   473→                          disabled={busy}
+   474→                          onClick={() => patch({ followUpDate: null }, "Follow-up date cleared")}
+   475→                          aria-label="Clear follow-up date"
+   476→                        >
+   477→                          Clear
+   478→                        </Button>
+   479→                      ) : null}
+   480→                    </div>
+   481→                  </div>
+   482→                </div>
+   483→                <div className="flex flex-wrap gap-2">
+   484→                  <Button
+   485→                    variant="outline"
+   486→                    size="sm"
+   487→                    disabled={busy}
+   488→                    onClick={() => patch({ markContacted: true }, "Marked as contacted")}
+   489→                  >
+   490→                    <Phone className="size-4" aria-hidden="true" />
+   491→                    Mark contacted
+   492→                  </Button>
+   493→                  <Button variant="outline" size="sm" disabled={busy} onClick={() => setScheduling(true)}>
+   494→                    <CalendarClock className="size-4" aria-hidden="true" />
+   495→                    Schedule site visit
+   496→                  </Button>
+   497→                </div>
+   498→                <div className="grid gap-2">
+   499→                  <Label htmlFor="tl-note">Add a follow-up note</Label>
+   500→                  <Textarea
+   501→                    id="tl-note"
+   502→                    value={note}
+   503→                    onChange={(e) => setNote(e.target.value)}
+   504→                    placeholder="Call outcome, buyer preferences, next steps…"
+   505→                    rows={3}
+   506→                  />
+   507→                  <div className="flex justify-end">
+   508→                    <Button
+   509→                      size="sm"
+   510→                      disabled={busy || note.trim().length < 3}
+   511→                      onClick={async () => {
+   512→                        const ok = await patch({ note: note.trim() }, "Note added");
+   513→                        if (ok) setNote("");
+   514→                      }}
+   515→                    >
+   516→                      <Send className="size-4" aria-hidden="true" />
+   517→                      Add note
+   518→                    </Button>
+   519→                  </div>
+   520→                </div>
+   521→              </div>
+   522→
+   523→              {/* Visits */}
+   524→              {detail.visits.length > 0 ? (
+   525→                <div className="grid gap-3 rounded-lg border bg-card p-3.5">
+   526→                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Site visits</p>
+   527→                  {detail.visits.map((v) => (
+   528→                    <div
+   529→                      key={v.id}
+   530→                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card px-3 py-2 text-xs"
+   531→                    >
+   532→                      <span className="font-medium text-foreground">
+   533→                        {formatDate(v.preferredDate)} · {v.preferredTime}
+   534→                      </span>
+   535→                      <span className="text-muted-foreground">{v.contactName}</span>
+   536→                      <StatusBadge status={v.status} />
+   537→                    </div>
+   538→                  ))}
+   539→                </div>
+   540→              ) : null}
+   541→
+   542→              {/* Activity timeline */}
+   543→              <div className="grid gap-3">
+   544→                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Activity timeline</p>
+   545→                {detail.activities.length === 0 ? (
+   546→                  <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+   547→                ) : (
+   548→                  <ol className="relative space-y-5 border-l border-border pl-5">
+   549→                    {detail.activities.map((a) => {
+   550→                      const Icon = activityIcon(a.type);
+   551→                      return (
+   552→                        <li key={a.id} className="relative">
+   553→                          <span className="absolute -left-[31px] grid size-6 place-items-center rounded-full bg-accent text-accent-foreground">
+   554→                            <Icon className="size-3" aria-hidden="true" />
+   555→                          </span>
+   556→                          <p className="text-sm leading-relaxed text-foreground">{a.note}</p>
+   557→                          <p className="mt-0.5 text-xs text-muted-foreground">
+   558→                            {a.user?.name ?? "System"} · {formatDateTime(a.createdAt)}
+   559→                          </p>
+   560→                        </li>
+   561→                      );
+   562→                    })}
+   563→                  </ol>
+   564→                )}
+   565→              </div>
+   566→            </div>
+   567→          </>
+   568→        ) : null}
+   569→      </DialogContent>
+   570→
+   571→      {scheduling && lead ? (
+   572→        <ScheduleVisitDialog
+   573→          lead={lead}
+   574→          onClose={() => setScheduling(false)}
+   575→          onDone={() => {
+   576→            setScheduling(false);
+   577→            void load();
+   578→            onChanged();
+   579→          }}
+   580→        />
+   581→      ) : null}
+   582→    </Dialog>
+   583→  );
+   584→}
+   585→
+   586→// ============================================================
+   587→// Overview tab
+   588→// ============================================================
+   589→
+   590→function TeamOverviewTab({
+   591→  onOpenLead,
+   592→  onGoToTasks,
+   593→  onGoToLeads,
+   594→}: {
+   595→  onOpenLead: (leadId: string) => void;
+   596→  onGoToTasks: () => void;
+   597→  onGoToLeads: () => void;
+   598→}) {
+   599→  const { data, loading, error, refetch } = useApiData<TeamOverviewDTO>(() => api("/api/team/overview"), []);
+   600→
+   601→  if (loading) {
+   602→    return (
+   603→      <div className="space-y-4">
+   604→        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+   605→          {[...Array(4)].map((_, i) => (
+   606→            <Skeleton key={i} className="h-28 rounded-xl" />
+   607→          ))}
+   608→        </div>
+   609→        <Skeleton className="h-64 rounded-xl" />
+   610→      </div>
+   611→    );
+   612→  }
+   613→  if (error || !data) {
+   614→    return (
+   615→      <AdminCard>
+   616→        <LoadError message={error ?? "Could not load your dashboard."} onRetry={refetch} />
+   617→      </AdminCard>
+   618→    );
+   619→  }
+   620→
+   621→  const maxPipeline = Math.max(1, ...data.pipeline.map((p) => p.count));
+   622→
+   623→  return (
+   624→    <div className="space-y-6">
+   625→      {/* KPIs */}
+   626→      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+   627→        <StatCard label="Assigned leads" value={data.stats.assigned} icon={<Inbox className="size-5 text-primary" aria-hidden="true" />} />
+   628→        <StatCard label="Open leads" value={data.stats.open} icon={<Users className="size-5 text-primary" aria-hidden="true" />} />
+   629→        <StatCard
+   630→          label="Follow-ups due"
+   631→          value={data.stats.dueFollowUps}
+   632→          sub="today or overdue"
+   633→          icon={<Clock className="size-5 text-primary" aria-hidden="true" />}
+   634→        />
+   635→        <StatCard
+   636→          label="Upcoming visits"
+   637→          value={data.stats.upcomingVisits}
+   638→          icon={<CalendarDays className="size-5 text-primary" aria-hidden="true" />}
+   639→        />
+   640→      </div>
+   641→
+   642→      <div className="grid gap-6 lg:grid-cols-2">
+   643→        {/* Upcoming follow-ups */}
+   644→        <AdminCard title="Upcoming follow-ups" description="Your next scheduled buyer touchpoints.">
+   645→          <div className="p-4 sm:p-5">
+   646→            {data.followUps.length === 0 ? (
+   647→              <p className="py-6 text-center text-sm text-muted-foreground">
+   648→                No follow-ups scheduled. Set one from a lead to stay on track.
+   649→              </p>
+   650→            ) : (
+   651→              <ul className="space-y-3">
+   652→                {data.followUps.map((lead) => {
+   653→                  const due = lead.followUpDate ? new Date(lead.followUpDate) : null;
+   654→                  const overdue = due ? due < new Date() : false;
+   655→                  return (
+   656→                    <li key={lead.id}>
+   657→                      <button
+   658→                        type="button"
+   659→                        onClick={() => onOpenLead(lead.id)}
+   660→                        className="flex w-full items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary/40"
+   661→                      >
+   662→                        <ImgThumb src={lead.property.mainImage} alt="" className="size-11 rounded-lg" />
+   663→                        <div className="min-w-0 flex-1">
+   664→                          <p className="truncate text-sm font-medium text-foreground">{lead.name}</p>
+   665→                          <p className="truncate text-xs text-muted-foreground">
+   666→                            {lead.property.title} · {lead.property.city}
+   667→                          </p>
+   668→                        </div>
+   669→                        <div className="shrink-0 text-right">
+   670→                          <p className={cn("text-xs font-semibold", overdue ? "text-rose-600" : "text-foreground")}>
+   671→                            {due ? formatDate(due.toISOString()) : "—"}
+   672→                          </p>
+   673→                          <p className="text-[11px] text-muted-foreground">{overdue ? "Overdue" : "Scheduled"}</p>
+   674→                        </div>
+   675→                      </button>
+   676→                    </li>
+   677→                  );
+   678→                })}
+   679→              </ul>
+   680→            )}
+   681→          </div>
+   682→        </AdminCard>
+   683→
+   684→        {/* Pipeline snapshot */}
+   685→        <AdminCard title="My pipeline" description="Where your assigned leads stand right now.">
+   686→          <div className="grid gap-4 p-4 sm:p-5">
+   687→            {data.pipeline.length === 0 ? (
+   688→              <p className="py-6 text-center text-sm text-muted-foreground">
+   689→                No leads assigned yet — an administrator will assign enquiries to you.
+   690→              </p>
+   691→            ) : (
+   692→              data.pipeline
+   693→                .slice()
+   694→                .sort((a, b) => b.count - a.count)
+   695→                .map((p) => (
+   696→                  <CountBar key={p.status} label={leadStatusLabel(p.status)} value={p.count} max={maxPipeline} />
+   697→                ))
+   698→            )}
+   699→            <Button variant="outline" className="justify-between" onClick={onGoToLeads}>
+   700→              Open my leads
+   701→              <ArrowRight className="size-4" aria-hidden="true" />
+   702→            </Button>
+   703→          </div>
+   704→        </AdminCard>
+   705→      </div>
+   706→
+   707→      {/* Today's worklist preview */}
+   708→      <AdminCard
+   709→        title="Worklist"
+   710→        description="What needs your attention right now."
+   711→        action={
+   712→          <Button variant="outline" size="sm" onClick={onGoToTasks}>
+   713→            View all tasks
+   714→            <ArrowRight className="size-4" aria-hidden="true" />
+   715→          </Button>
+   716→        }
+   717→      >
+   718→        <div className="divide-y">
+   719→          {data.tasks.length === 0 ? (
+   720→            <p className="p-6 text-center text-sm text-muted-foreground">
+   721→              All clear — no follow-ups, first contacts or visits pending.
+   722→            </p>
+   723→          ) : (
+   724→            data.tasks.slice(0, 4).map((task) => (
+   725→              <button
+   726→                key={task.id}
+   727→                type="button"
+   728→                onClick={() => task.leadId && onOpenLead(task.leadId)}
+   729→                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50 sm:px-5"
+   730→              >
+   731→                <span
+   732→                  className={cn(
+   733→                    "inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+   734→                    TASK_META[task.kind].chip
+   735→                  )}
+   736→                >
+   737→                  {TASK_LABELS[task.kind]}
+   738→                </span>
+   739→                <span className="min-w-0 flex-1">
+   740→                  <span className="block truncate text-sm font-medium text-foreground">{task.title}</span>
+   741→                  <span className="block truncate text-xs text-muted-foreground">{task.detail}</span>
+   742→                </span>
+   743→                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+   744→              </button>
+   745→            ))
+   746→          )}
+   747→        </div>
+   748→      </AdminCard>
+   749→    </div>
+   750→  );
+   751→}
+   752→
+   753→// ============================================================
+   754→// Leads tab
+   755→// ============================================================
+   756→
+   757→function TeamLeadsTab({ onOpenLead, refreshKey }: { onOpenLead: (leadId: string) => void; refreshKey: number }) {
+   758→  const [status, setStatus] = useState("ALL");
+   759→  const [search, setSearch] = useState("");
+   760→  const debouncedSearch = useDebounced(search);
+   761→  const [page, setPage] = useState(1);
+   762→
+   763→  const { data, loading, error, refetch } = useApiData<Paginated<LeadDTO>>(
+   764→    () =>
+   765→      api(
+   766→        `/api/leads${qs({
+   767→          status: status !== "ALL" ? status : null,
+   768→          q: debouncedSearch || null,
+   769→          page,
+   770→          pageSize: 10,
+   771→        })}`
+   772→      ),
+   773→    [status, debouncedSearch, page, refreshKey]
+   774→  );
+   775→
+   776→  const leads = data?.data ?? [];
+   777→
+   778→  return (
+   779→    <div>
+   780→      <TabIntro
+   781→        eyebrow="My leads"
+   782→        title="Assigned enquiries"
+   783→        description="Buyer enquiries the team lead has assigned to you — call, qualify and move them through the pipeline."
+   784→      />
+   785→      <AdminCard bodyClassName="">
+   786→        <FilterBar
+   787→          search={search}
+   788→          onSearchChange={(v) => {
+   789→            setSearch(v);
+   790→            setPage(1);
+   791→          }}
+   792→          placeholder="Search name, phone or reference…"
+   793→          ariaLabel="Search leads"
+   794→        >
+   795→          <ChipBar
+   796→            value={status}
+   797→            onChange={(v) => {
+   798→              setStatus(v);
+   799→              setPage(1);
+   800→            }}
+   801→            options={[{ value: "ALL", label: "All" }, ...LEAD_STATUSES.map((s) => ({ value: s.value, label: s.label }))]}
+   802→          />
+   803→        </FilterBar>
+   804→
+   805→        {loading ? (
+   806→          <TableSkeleton rows={8} />
+   807→        ) : error ? (
+   808→          <LoadError message={error} onRetry={refetch} />
+   809→        ) : leads.length === 0 ? (
+   810→          <div className="p-4 sm:p-5">
+   811→            <EmptyState
+   812→              icon={<Inbox className="size-6" aria-hidden="true" />}
+   813→              title="No leads found"
+   814→              description={
+   815→                status === "ALL"
+   816→                  ? "You have no assigned enquiries yet. An administrator will assign leads to you as they come in."
+   817→                  : "No assigned leads match this filter."
+   818→              }
+   819→            />
+   820→          </div>
+   821→        ) : (
+   822→          <>
+   823→            <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+   824→              <Table>
+   825→                <TableHeader>
+   826→                  <TableRow>
+   827→                    <TableHead>Reference</TableHead>
+   828→                    <TableHead>Buyer</TableHead>
+   829→                    <TableHead>Property</TableHead>
+   830→                    <TableHead>Status</TableHead>
+   831→                    <TableHead>Follow-up</TableHead>
+   832→                    <TableHead className="text-right">Actions</TableHead>
+   833→                  </TableRow>
+   834→                </TableHeader>
+   835→                <TableBody>
+   836→                  {leads.map((lead) => {
+   837→                    const due = lead.followUpDate ? new Date(lead.followUpDate) : null;
+   838→                    const overdue = due ? due < new Date() && !["CONVERTED", "LOST"].includes(lead.status) : false;
+   839→                    return (
+   840→                      <TableRow key={lead.id}>
+   841→                        <TableCell className="font-mono text-xs text-muted-foreground">{lead.reference}</TableCell>
+   842→                        <TableCell>
+   843→                          <p className="font-medium text-foreground">{lead.name}</p>
+   844→                          <a href={`tel:${lead.phone}`} className="text-xs text-primary hover:underline">
+   845→                            {lead.phone}
+   846→                          </a>
+   847→                        </TableCell>
+   848→                        <TableCell>
+   849→                          <p className="max-w-[200px] truncate font-medium text-foreground">{lead.property.title}</p>
+   850→                          <p className="text-xs text-muted-foreground">{lead.property.city}</p>
+   851→                        </TableCell>
+   852→                        <TableCell>
+   853→                          <StatusBadge status={lead.status} />
+   854→                        </TableCell>
+   855→                        <TableCell className={cn("text-xs", overdue ? "font-semibold text-rose-600" : "text-muted-foreground")}>
+   856→                          {due ? formatDate(due.toISOString()) : "—"}
+   857→                        </TableCell>
+   858→                        <TableCell className="text-right">
+   859→                          <Button size="sm" variant="outline" onClick={() => onOpenLead(lead.id)}>
+   860→                            <MessageSquareText className="size-4" aria-hidden="true" />
+   861→                            Work lead
+   862→                          </Button>
+   863→                        </TableCell>
+   864→                      </TableRow>
+   865→                    );
+   866→                  })}
+   867→                </TableBody>
+   868→              </Table>
+   869→            </div>
+   870→            <TablePager pagination={data?.pagination} onPage={setPage} unit="leads" />
+   871→          </>
+   872→        )}
+   873→      </AdminCard>
+   874→    </div>
+   875→  );
+   876→}
+   877→
+   878→// ============================================================
+   879→// Tasks tab
+   880→// ============================================================
+   881→
+   882→function TeamTasksTab({ onOpenLead, onRefresh }: { onOpenLead: (leadId: string) => void; onRefresh: () => void }) {
+   883→  const { data, loading, error, refetch } = useApiData<TeamOverviewDTO>(() => api("/api/team/overview"), []);
+   884→
+   885→  async function confirmVisit(task: TeamTaskDTO) {
+   886→    if (!task.visitId) return;
+   887→    await runAction(
+   888→      () =>
+   889→        api(`/api/site-visits/${task.visitId}`, {
+   890→          method: "PATCH",
+   891→          body: JSON.stringify({ status: "CONFIRMED" }),
+   892→        }),
+   893→      "Visit confirmed",
+   894→      { onDone: refetch }
+   895→    );
+   896→    onRefresh();
+   897→  }
+   898→
+   899→  const grouped = useMemo(() => {
+   900→    const g: Record<string, TeamTaskDTO[]> = {};
+   901→    for (const t of data?.tasks ?? []) {
+   902→      (g[t.kind] ??= []).push(t);
+   903→    }
+   904→    return g;
+   905→  }, [data]);
+   906→
+   907→  return (
+   908→    <div>
+   909→      <TabIntro
+   910→        eyebrow="Tasks"
+   911→        title="My worklist"
+   912→        description="Everything that needs your attention — overdue follow-ups, first contacts and site visits — generated automatically from your leads."
+   913→      />
+   914→      {loading ? (
+   915→        <AdminCard>
+   916→          <TableSkeleton rows={6} />
+   917→        </AdminCard>
+   918→      ) : error ? (
+   919→        <AdminCard>
+   920→          <LoadError message={error} onRetry={refetch} />
+   921→        </AdminCard>
+   922→      ) : (data?.tasks.length ?? 0) === 0 ? (
+   923→        <EmptyState
+   924→          icon={<CheckCircle2 className="size-6" aria-hidden="true" />}
+   925→          title="You're all caught up"
+   926→          description="No follow-ups due, new leads waiting, or visits to confirm. Check back after your next buyer conversation."
+   927→        />
+   928→      ) : (
+   929→        <div className="space-y-6">
+   930→          {Object.entries(grouped).map(([kind, tasks]) => (
+   931→            <AdminCard key={kind} title={TASK_LABELS[kind as TeamTaskDTO["kind"]]} description={`${tasks.length} ${tasks.length === 1 ? "item" : "items"}`}>
+   932→              <ul className="divide-y">
+   933→                {tasks.map((task) => (
+   934→                  <li key={task.id} className="flex flex-wrap items-center gap-3 px-4 py-3.5 sm:px-5">
+   935→                    <span
+   936→                      className={cn(
+   937→                        "inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+   938→                        TASK_META[task.kind].chip
+   939→                      )}
+   940→                    >
+   941→                      {TASK_LABELS[task.kind]}
+   942→                    </span>
+   943→                    <div className="min-w-0 flex-1">
+   944→                      <p className="truncate text-sm font-medium text-foreground">{task.title}</p>
+   945→                      <p className="truncate text-xs text-muted-foreground">{task.detail}</p>
+   946→                    </div>
+   947→                    <div className="flex shrink-0 items-center gap-2">
+   948→                      {task.kind === "VISIT_TO_CONFIRM" && task.visitId ? (
+   949→                        <Button size="sm" variant="outline" onClick={() => void confirmVisit(task)}>
+   950→                          <CheckCircle2 className="size-4" aria-hidden="true" />
+   951→                          Confirm
+   952→                        </Button>
+   953→                      ) : null}
+   954→                      {task.leadId ? (
+   955→                        <Button size="sm" onClick={() => onOpenLead(task.leadId!)}>
+   956→                          Open lead
+   957→                          <ArrowRight className="size-4" aria-hidden="true" />
+   958→                        </Button>
+   959→                      ) : null}
+   960→                    </div>
+   961→                  </li>
+   962→                ))}
+   963→              </ul>
+   964→            </AdminCard>
+   965→          ))}
+   966→        </div>
+   967→      )}
+   968→    </div>
+   969→  );
+   970→}
+   971→
+   972→// ============================================================
+   973→// Activity tab
+   974→// ============================================================
+   975→
+   976→function TeamActivityTab({ refreshKey }: { refreshKey: number }) {
+   977→  const { data, loading, error, refetch } = useApiData<TeamOverviewDTO>(() => api("/api/team/overview"), [refreshKey]);
+   978→
+   979→  const activities = data?.activities ?? [];
+   980→
+   981→  return (
+   982→    <div>
+   983→      <TabIntro
+   984→        eyebrow="My activity"
+   985→        title="Activity history"
+   986→        description="Every note, status change and visit you've recorded across your assigned leads."
+   987→      />
+   988→      <AdminCard>
+   989→        {loading ? (
+   990→          <div className="space-y-4 p-5">
+   991→            {[...Array(6)].map((_, i) => (
+   992→              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+   993→            ))}
+   994→          </div>
+   995→        ) : error ? (
+   996→          <LoadError message={error} onRetry={refetch} />
+   997→        ) : activities.length === 0 ? (
+   998→          <div className="p-5">
+   999→            <EmptyState
+  1000→              icon={<History className="size-6" aria-hidden="true" />}
+  1001→              title="No activity yet"
+  1002→              description="Your notes, status updates and scheduled visits will appear here."
+  1003→            />
+  1004→          </div>
+  1005→        ) : (
+  1006→          <ol className="relative space-y-6 border-l border-border p-5 pl-8">
+  1007→            {activities.map((a) => {
+  1008→              const Icon = activityIcon(a.type);
+  1009→              return (
+  1010→                <li key={a.id} className="relative">
+  1011→                  <span className="absolute -left-[37px] grid size-7 place-items-center rounded-full bg-accent text-accent-foreground">
+  1012→                    <Icon className="size-3.5" aria-hidden="true" />
+  1013→                  </span>
+  1014→                  <p className="text-sm leading-relaxed text-foreground">{a.note}</p>
+  1015→                  <p className="mt-1 text-xs text-muted-foreground">
+  1016→                    {a.lead ? (
+  1017→                      <>
+  1018→                        {a.lead.reference} · {a.lead.name} ·{" "}
+  1019→                      </>
+  1020→                    ) : null}
+  1021→                    {formatDateTime(a.createdAt)}
+  1022→                  </p>
+  1023→                </li>
+  1024→              );
+  1025→            })}
+  1026→          </ol>
+  1027→        )}
+  1028→      </AdminCard>
+  1029→    </div>
+  1030→  );
+  1031→}
+  1032→
+  1033→// ============================================================
+  1034→// Profile tab
+  1035→// ============================================================
+  1036→
+  1037→function TeamProfileTab() {
+  1038→  const user = useAppStore((s) => s.user);
+  1039→  if (!user) return null;
+  1040→
+  1041→  return (
+  1042→    <div>
+  1043→      <TabIntro
+  1044→        eyebrow="Profile"
+  1045→        title="My profile"
+  1046→        description="Your internal Vasati staff profile. Contact the administration team to update these details."
+  1047→      />
+  1048→      <div className="grid gap-4 sm:grid-cols-2">
+  1049→        <AdminCard title="Account">
+  1050→          <dl className="grid gap-4 p-4 sm:p-5">
+  1051→            <div>
+  1052→              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Name</dt>
+  1053→              <dd className="mt-1 text-sm font-medium text-foreground">{user.name}</dd>
+  1054→            </div>
+  1055→            <div>
+  1056→              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
+  1057→              <dd className="mt-1 text-sm font-medium text-foreground">{user.email}</dd>
+  1058→            </div>
+  1059→            <div>
+  1060→              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Phone</dt>
+  1061→              <dd className="mt-1 text-sm font-medium text-foreground">{user.phone ?? "—"}</dd>
+  1062→            </div>
+  1063→            <div>
+  1064→              <dt className="text-xs uppercase tracking-wide text-muted-foreground">City</dt>
+  1065→              <dd className="mt-1 text-sm font-medium text-foreground">{user.city ?? "—"}</dd>
+  1066→            </div>
+  1067→            <div>
+  1068→              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Role</dt>
+  1069→              <dd className="mt-1 text-sm font-medium text-foreground">{ROLE_LABELS[user.role]}</dd>
+  1070→            </div>
+  1071→            <div>
+  1072→              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Member since</dt>
+  1073→              <dd className="mt-1 text-sm font-medium text-foreground">{formatMonthYear(user.createdAt)}</dd>
+  1074→            </div>
+  1075→          </dl>
+  1076→        </AdminCard>
+  1077→        <AdminCard title="What you can do" description="Your operational permissions as a Vasati team member.">
+  1078→          <ul className="grid gap-3 p-4 text-sm text-muted-foreground sm:p-5">
+  1079→            {[
+  1080→              "Work the buyer enquiries assigned to you — call, email and qualify buyers.",
+  1081→              "Update operational lead statuses and follow-up dates.",
+  1082→              "Add follow-up notes and schedule or update site visits.",
+  1083→              "View your own task list, upcoming follow-ups and activity history.",
+  1084→            ].map((line) => (
+  1085→              <li key={line} className="flex items-start gap-2.5">
+  1086→                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+  1087→                {line}
+  1088→              </li>
+  1089→            ))}
+  1090→          </ul>
+  1091→          <p className="border-t px-4 py-3 text-xs text-muted-foreground sm:px-5">
+  1092→            Commission rates, financial settings and user management are handled by administrators.
+  1093→          </p>
+  1094→        </AdminCard>
+  1095→      </div>
+  1096→    </div>
+  1097→  );
+  1098→}
+  1099→
+  1100→// ============================================================
+  1101→// Dashboard shell
+  1102→// ============================================================
+  1103→
+  1104→export function TeamDashboard({ initialTab }: { initialTab?: string }) {
+  1105→  const user = useAppStore((s) => s.user);
+  1106→  const [tab, selectTab] = useDashboardTab(TEAM_TAB_IDS, initialTab);
+  1107→
+  1108→  const [openLeadId, setOpenLeadId] = useState<string | null>(null);
+  1109→  const [refreshKey, setRefreshKey] = useState(0);
+  1110→  const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  1111→
+  1112→  function openLead(leadId: string) {
+  1113→    setOpenLeadId(leadId);
+  1114→  }
+  1115→
+  1116→  return (
+  1117→    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+  1118→      <header className="flex flex-wrap items-start justify-between gap-4">
+  1119→        <div>
+  1120→          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Vasati operations</p>
+  1121→          <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+  1122→            Lead workspace
+  1123→          </h1>
+  1124→          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+  1125→            Manage your assigned buyer enquiries, follow-ups, site visits and tasks — everything you need to close
+  1126→            deals, in one place.
+  1127→          </p>
+  1128→        </div>
+  1129→        {user ? (
+  1130→          <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-2.5 shadow-sm">
+  1131→            <AvatarInitials name={user.name} />
+  1132→            <div className="min-w-0">
+  1133→              <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
+  1134→              <p className="truncate text-xs text-muted-foreground">
+  1135→                {ROLE_LABELS[user.role]} · since {formatMonthYear(user.createdAt)}
+  1136→              </p>
+  1137→            </div>
+  1138→          </div>
+  1139→        ) : null}
+  1140→      </header>
+  1141→
+  1142→      <div className="mt-6 lg:flex lg:gap-6">
+  1143→        {/* Desktop sidebar */}
+  1144→        <aside className="hidden w-56 shrink-0 lg:block">
+  1145→          <nav
+  1146→            aria-label="Team sections"
+  1147→            className="sticky top-24 space-y-1 rounded-xl border bg-card p-2 shadow-sm"
+  1148→          >
+  1149→            {TEAM_TABS.map((t) => {
+  1150→              const active = tab === t.id;
+  1151→              return (
+  1152→                <button
+  1153→                  key={t.id}
+  1154→                  type="button"
+  1155→                  onClick={() => selectTab(t.id)}
+  1156→                  aria-current={active ? "page" : undefined}
+  1157→                  className={cn(
+  1158→                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+  1159→                    active
+  1160→                      ? "bg-accent font-medium text-accent-foreground"
+  1161→                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+  1162→                  )}
+  1163→                >
+  1164→                  <t.icon className={cn("size-4 shrink-0", active && "text-primary")} aria-hidden="true" />
+  1165→                  {t.label}
+  1166→                </button>
+  1167→              );
+  1168→            })}
+  1169→          </nav>
+  1170→        </aside>
+  1171→
+  1172→        <div className="min-w-0 flex-1">
+  1173→          {/* Mobile tab bar */}
+  1174→          <div className="mb-6 flex gap-2 overflow-x-auto vasati-scroll pb-1 lg:hidden">
+  1175→            {TEAM_TABS.map((t) => {
+  1176→              const active = tab === t.id;
+  1177→              return (
+  1178→                <button
+  1179→                  key={t.id}
+  1180→                  type="button"
+  1181→                  onClick={() => selectTab(t.id)}
+  1182→                  aria-current={active ? "page" : undefined}
+  1183→                  className={cn(
+  1184→                    "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
+  1185→                    active
+  1186→                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+  1187→                      : "border-border bg-card text-muted-foreground"
+  1188→                  )}
+  1189→                >
+  1190→                  <t.icon className="size-4" aria-hidden="true" />
+  1191→                  {t.label}
+  1192→                </button>
+  1193→              );
+  1194→            })}
+  1195→          </div>
+  1196→
+  1197→          {tab === "overview" ? (
+  1198→            <TeamOverviewTab
+  1199→              onOpenLead={openLead}
+  1200→              onGoToTasks={() => selectTab("tasks")}
+  1201→              onGoToLeads={() => selectTab("leads")}
+  1202→            />
+  1203→          ) : null}
+  1204→          {tab === "leads" ? <TeamLeadsTab onOpenLead={openLead} refreshKey={refreshKey} /> : null}
+  1205→          {tab === "visits" ? (
+  1206→            <VisitsBoard
+  1207→              title="Site visits"
+  1208→              description="Confirm, reschedule and complete visits for your assigned leads."
+  1209→            />
+  1210→          ) : null}
+  1211→          {tab === "tasks" ? <TeamTasksTab onOpenLead={openLead} onRefresh={bumpRefresh} /> : null}
+  1212→          {tab === "activity" ? <TeamActivityTab refreshKey={refreshKey} /> : null}
+  1213→          {tab === "profile" ? <TeamProfileTab /> : null}
+  1214→        </div>
+  1215→      </div>
+  1216→
+  1217→      {openLeadId ? (
+  1218→        <TeamLeadDialog
+  1219→          leadId={openLeadId}
+  1220→          onOpenChange={(open) => {
+  1221→            if (!open) setOpenLeadId(null);
+  1222→          }}
+  1223→          onChanged={bumpRefresh}
+  1224→        />
+  1225→      ) : null}
+  1226→    </div>
+  1227→  );
+  1228→}
+  1229→

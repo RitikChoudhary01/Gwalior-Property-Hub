@@ -8,15 +8,18 @@
 // client validation and the exact /api/properties contract.
 // ============================================================
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Gauge,
   Info,
   Loader2,
+  Plus,
   Trash2,
   UploadCloud,
 } from "lucide-react";
@@ -162,6 +165,134 @@ function isValidCoord(value: string, range: number): boolean {
   return Number.isFinite(n) && n >= -range && n <= range;
 }
 
+// ---------- listing strength (pure scoring) ----------
+
+interface CompletenessGap {
+  label: string;
+  points: number;
+  targetId: string;
+}
+
+/**
+ * Pure scoring helper for the live "Listing strength" meter.
+ * Weights (total 100):
+ *   Basics 40 · Specifications 20 · Details 10 · Photos 15 ·
+ *   Amenities 8 · RERA 7.
+ * Field thresholds mirror the form's own validation hints
+ * (title ≥ 10 chars, description ≥ 50, price ≥ ₹5,00,000 …).
+ */
+function listingCompleteness(
+  form: FormState,
+  amenities: string[],
+  imageCount: number,
+  isPlot: boolean
+): { score: number; missing: CompletenessGap[] } {
+  let score = 0;
+  const missing: CompletenessGap[] = [];
+
+  const award = (earned: boolean, points: number, label: string, targetId: string) => {
+    if (earned) score += points;
+    else missing.push({ label, points, targetId });
+  };
+
+  // Basics — 40 pts
+  award(form.title.trim().length >= 10, 6, "Add a title", "prop-title");
+  award(form.description.trim().length >= 50, 6, "Write a description", "prop-description");
+  award(form.type !== "", 4, "Select property type", "prop-type");
+  const price = Number(form.price.trim());
+  award(
+    form.price.trim() !== "" && Number.isFinite(price) && price >= 500000,
+    6,
+    "Set the price",
+    "prop-price"
+  );
+  award(form.city !== "", 6, "Select the city", "prop-city");
+  award(form.locality !== "", 6, "Select the locality", "prop-locality");
+  award(form.address.trim().length >= 10, 6, "Add the full address", "prop-address");
+
+  // Specifications — 20 pts
+  award(
+    isPlot || (form.bhk !== "" && form.bhk !== "na"),
+    7,
+    "Select bedrooms (BHK)",
+    "prop-bhk"
+  );
+  award(form.bathrooms !== "", 6, "Select bathrooms", "prop-bathrooms");
+  award(
+    form.carpetArea.trim() !== "" ||
+      form.builtUpArea.trim() !== "" ||
+      (isPlot && form.plotArea.trim() !== ""),
+    7,
+    "Add the area (sq.ft)",
+    "prop-carpet"
+  );
+
+  // Details — 10 pts
+  award(form.furnishing !== "", 2, "Select furnishing", "prop-furnishing");
+  award(form.parking !== "", 2, "Select parking", "prop-parking");
+  award(form.floorInfo.trim() !== "", 2, "Add floor details", "prop-floor");
+  award(form.facing !== "", 2, "Select facing", "prop-facing");
+  award(
+    form.constructionStatus === "UNDER_CONSTRUCTION"
+      ? form.possessionDate !== ""
+      : form.constructionStatus === "READY_TO_MOVE"
+        ? form.ageOfProperty !== ""
+        : form.constructionStatus !== "",
+    2,
+    "Add possession / age details",
+    "prop-construction"
+  );
+
+  // Photos — 15 pts (0 → 0 · 1-2 → 8 · 3+ → 15)
+  score += imageCount === 0 ? 0 : imageCount <= 2 ? 8 : 15;
+  if (imageCount === 0) {
+    missing.push({ label: "Add photos", points: 15, targetId: "prop-photos" });
+  } else if (imageCount <= 2) {
+    missing.push({ label: "Add more photos", points: 7, targetId: "prop-photos" });
+  }
+
+  // Amenities — 8 pts (0 → 0 · 1-3 → 5 · 4+ → 8)
+  score += amenities.length >= 4 ? 8 : amenities.length >= 1 ? 5 : 0;
+  if (amenities.length === 0) {
+    missing.push({ label: "Add amenities", points: 8, targetId: "prop-amenities" });
+  } else if (amenities.length < 4) {
+    missing.push({ label: "Add more amenities", points: 3, targetId: "prop-amenities" });
+  }
+
+  // RERA — 7 pts
+  award(form.reraNumber.trim() !== "", 7, "Add RERA number", "prop-rera");
+
+  missing.sort((a, b) => b.points - a.points);
+  return { score, missing };
+}
+
+/** Qualitative tier for the current listing-strength score. */
+function strengthTier(score: number): { label: string; textClass: string; barClass: string } {
+  if (score >= 90)
+    return {
+      label: "Ready to impress",
+      textClass: "text-primary",
+      barClass: "[&_[data-slot=progress-indicator]]:bg-primary",
+    };
+  if (score >= 70)
+    return {
+      label: "Almost complete",
+      textClass: "text-emerald-600 dark:text-emerald-400",
+      barClass: "[&_[data-slot=progress-indicator]]:bg-emerald-500",
+    };
+  if (score >= 40)
+    return {
+      label: "Getting there",
+      textClass: "text-amber-600 dark:text-amber-400",
+      barClass: "[&_[data-slot=progress-indicator]]:bg-amber-500",
+    };
+  return {
+    label: "Just started",
+    textClass: "text-stone-500 dark:text-stone-400",
+    barClass: "[&_[data-slot=progress-indicator]]:bg-stone-400",
+  };
+}
+
 // ============================================================
 // PropertyForm
 // ============================================================
@@ -236,6 +367,19 @@ export function PropertyForm({
   // submit / draft choice; other statuses simply save changes.
   const canChooseDraft = !isEdit || property!.status === "DRAFT" || property!.status === "REJECTED";
   const primaryLabel = isEdit && !canChooseDraft ? "Save changes" : "Submit for approval";
+
+  // ---------- listing strength meter ----------
+
+  const { score: listingScore, missing: listingGaps } = useMemo(
+    () => listingCompleteness(form, amenities, images.length, isPlot),
+    [form, amenities, images.length, isPlot]
+  );
+  const tier = strengthTier(listingScore);
+  const topGaps = listingGaps.slice(0, 3);
+
+  function scrollToGap(targetId: string) {
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -433,6 +577,54 @@ export function PropertyForm({
       </DialogHeader>
 
       <div className="vasati-scroll max-h-[75vh] space-y-8 overflow-y-auto px-6 py-5">
+        {/* ---------------- Listing strength (sticky meter) ---------------- */}
+        <div className="sticky top-0 z-20 -mx-6 border-b bg-background/95 px-6 py-3 backdrop-blur">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Gauge className={cn("size-3.5 shrink-0", tier.textClass)} aria-hidden="true" />
+              <h4 className="truncate text-xs font-semibold tracking-wide text-foreground uppercase">
+                Listing strength
+              </h4>
+              <span className={cn("min-w-0 truncate text-xs font-semibold", tier.textClass)}>
+                · {tier.label}
+              </span>
+            </div>
+            <p className={cn("shrink-0 text-sm font-semibold tabular-nums", tier.textClass)}>
+              {listingScore}%
+            </p>
+          </div>
+          <Progress
+            value={listingScore}
+            className={cn("mt-2 h-1.5", tier.barClass)}
+            aria-label={`Listing completeness ${listingScore} percent — ${tier.label}`}
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            {topGaps.length > 0 ? (
+              topGaps.map((gap) => (
+                <button
+                  key={gap.label}
+                  type="button"
+                  onClick={() => scrollToGap(gap.targetId)}
+                  className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                >
+                  <Plus className="size-3 shrink-0" aria-hidden="true" />
+                  {gap.label}
+                </button>
+              ))
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                <Check className="size-3.5" aria-hidden="true" />
+                All key details filled in
+              </span>
+            )}
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              {listingGaps.length === 0
+                ? "This listing is ready to impress buyers."
+                : "Complete listings get significantly more buyer enquiries on Vasati."}
+            </p>
+          </div>
+        </div>
+
         {apiError && (
           <Alert variant="destructive">
             <AlertCircle className="size-4" aria-hidden="true" />
@@ -882,7 +1074,7 @@ export function PropertyForm({
 
         {/* ---------------- Amenities ---------------- */}
         <FormSection title="Amenities" description="Pick everything this property offers.">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Amenities">
+          <div id="prop-amenities" className="flex flex-wrap gap-2" role="group" aria-label="Amenities">
             {AMENITIES.map((a) => {
               const active = amenities.includes(a);
               return (
@@ -915,6 +1107,7 @@ export function PropertyForm({
           <FieldError message={errors.photos} />
 
           <div
+            id="prop-photos"
             role="button"
             tabIndex={0}
             aria-label="Upload photos"

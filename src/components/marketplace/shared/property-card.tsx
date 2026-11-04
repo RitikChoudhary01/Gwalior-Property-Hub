@@ -6,7 +6,7 @@ import { Heart, MapPin, BedDouble, Bath, Ruler, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/use-app-store";
 import { formatPrice, formatArea, formatConfig, formatNumber } from "@/lib/format";
-import { VerifiedBadge } from "./status-badge";
+import { VerifiedBadge, ListingVerifiedBadge } from "./status-badge";
 import type { PropertyCardDTO } from "@/lib/types";
 
 export function PropertyCard({
@@ -108,7 +108,12 @@ export function PropertyCard({
         </button>
 
         <div className="absolute bottom-3 left-3">
-          <VerifiedBadge verified={property.sellerVerified} label={property.builderName ? "RERA Builder" : "Verified Owner"} />
+          {/* Listing-level legal verification — never implied from seller identity */}
+          {property.verificationStatus === "VERIFIED" ? (
+            <ListingVerifiedBadge />
+          ) : property.verificationStatus === "REQUESTED" ? (
+            <VerifiedBadge verified={false} label="Verification in progress" />
+          ) : null}
         </div>
       </div>
 

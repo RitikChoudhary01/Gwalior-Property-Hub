@@ -15,6 +15,7 @@ import {
   Inbox,
   LayoutDashboard,
   Receipt,
+  Target,
   Users,
   UsersRound,
   Wallet,
@@ -28,6 +29,7 @@ import { AdminUsers } from "./admin/parts-users";
 import { AdminTeam } from "./admin/parts-team";
 import { AdminProperties, AdminProjects } from "./admin/parts-moderation";
 import { AdminLeads } from "./admin/parts-leads";
+import { AdminRequirements } from "./admin/parts-requirements";
 import { AdminTransactions, AdminCommissions, AdminAgreements } from "./admin/parts-finance";
 import { AdminAuditLog } from "./admin/parts-audit";
 
@@ -38,6 +40,7 @@ const ADMIN_TABS = [
   { id: "properties", label: "Properties", icon: Home },
   { id: "projects", label: "Projects", icon: Building2 },
   { id: "leads", label: "Leads CRM", icon: Inbox },
+  { id: "requirements", label: "Requirements", icon: Target },
   { id: "visits", label: "Site visits", icon: CalendarDays },
   { id: "transactions", label: "Transactions", icon: Receipt },
   { id: "commissions", label: "Commissions", icon: Wallet },
@@ -140,6 +143,7 @@ export function AdminDashboard({ initialTab }: { initialTab?: string }) {
           {tab === "properties" ? <AdminProperties /> : null}
           {tab === "projects" ? <AdminProjects /> : null}
           {tab === "leads" ? <AdminLeads /> : null}
+          {tab === "requirements" ? <AdminRequirements /> : null}
           {tab === "visits" ? (
             <VisitsBoard
               title="Site visits"

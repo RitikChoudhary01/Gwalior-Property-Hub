@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Eye,
   History,
   Inbox,
   LayoutDashboard,
@@ -30,13 +31,14 @@ import {
   Search,
   Send,
   StickyNote,
+  Target,
   UserRound,
   Users,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api-client";
 import { useAppStore } from "@/store/use-app-store";
 import { cn } from "@/lib/utils";
-import { LEAD_STATUSES, ROLE_LABELS, VISIT_TIME_SLOTS } from "@/lib/constants";
+import { LEAD_STATUSES, REQUIREMENT_STATUSES, ROLE_LABELS, VISIT_TIME_SLOTS } from "@/lib/constants";
 import { formatDate, formatDateTime, formatMonthYear, formatPrice } from "@/lib/format";
 import type {
   LeadActivityDTO,
@@ -66,6 +68,14 @@ import {
   useDashboardTab,
   useDebounced,
 } from "./admin/parts-shared";
+import {
+  RequirementDetailDialog,
+  RequirementListResponse,
+  budgetLabel,
+  configLabel,
+  listPagination,
+  purposeLabel,
+} from "./admin/parts-requirements";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -92,6 +102,7 @@ import { Textarea } from "@/components/ui/textarea";
 const TEAM_TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "leads", label: "My leads", icon: Inbox },
+  { id: "requirements", label: "Requirements", icon: Target },
   { id: "visits", label: "Site visits", icon: CalendarDays },
   { id: "tasks", label: "Tasks", icon: ListChecks },
   { id: "activity", label: "My activity", icon: History },
@@ -876,6 +887,151 @@ function TeamLeadsTab({ onOpenLead, refreshKey }: { onOpenLead: (leadId: string)
 }
 
 // ============================================================
+// Requirements tab — buyer briefs assigned to this member
+// ============================================================
+
+function TeamRequirementsTab({ refreshKey, onRefresh }: { refreshKey: number; onRefresh: () => void }) {
+  const [status, setStatus] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  // Scoped server-side: TEAM only ever receives requirements assigned to them.
+  const { data, loading, error, refetch } = useApiData<RequirementListResponse>(
+    () =>
+      api(
+        `/api/requirements${qs({
+          status: status !== "ALL" ? status : null,
+          page,
+          pageSize: 10,
+        })}`
+      ),
+    [status, page, refreshKey]
+  );
+
+  const requirements = data?.items ?? [];
+
+  return (
+    <div>
+      <TabIntro
+        eyebrow="Buyer demand"
+        title="My requirements"
+        description="Buyer briefs assigned to you — each with live inventory matches ready to share on your next call."
+      />
+      <AdminCard bodyClassName="">
+        <div className="border-b p-4 sm:px-5">
+          <ChipBar
+            value={status}
+            onChange={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "ALL", label: "All" },
+              ...REQUIREMENT_STATUSES.map((s) => ({ value: s.value, label: s.label })),
+            ]}
+            ariaLabel="Filter assigned requirements by status"
+          />
+        </div>
+
+        {loading ? (
+          <TableSkeleton rows={5} />
+        ) : error ? (
+          <LoadError message={error} onRetry={refetch} />
+        ) : requirements.length === 0 ? (
+          <div className="p-4 sm:p-5">
+            <EmptyState
+              icon={<Target className="size-6" aria-hidden="true" />}
+              title={status === "ALL" ? "No requirements assigned to you yet" : "No requirements found"}
+              description={
+                status === "ALL"
+                  ? "An administrator will assign buyer briefs to you as they come in."
+                  : "No assigned buyer briefs match this filter."
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <ul className="divide-y">
+              {requirements.map((r) => (
+                <li key={r.id} className="p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <AvatarInitials name={r.name} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{r.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          <a href={`tel:${r.phone}`} className="text-primary hover:underline">
+                            {r.phone}
+                          </a>{" "}
+                          · <span className="font-mono">{r.reference}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <StatusBadge status={r.status} />
+                  </div>
+
+                  <div className="mt-3 grid gap-x-8 gap-y-2 text-xs sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">Looking for</p>
+                      <p className="mt-0.5 font-medium text-foreground">
+                        {configLabel(r.bhk, r.propertyType)} · {purposeLabel(r.purpose)} · {r.city}
+                      </p>
+                      {r.localities.length ? (
+                        <p className="mt-0.5 truncate text-muted-foreground" title={r.localities.join(", ")}>
+                          {r.localities.join(" · ")}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">Budget</p>
+                      <p className="mt-0.5 font-medium text-foreground">
+                        {budgetLabel(r.budgetMin, r.budgetMax)}
+                      </p>
+                      <p className="mt-0.5 text-muted-foreground">Posted {formatDate(r.createdAt)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+                    {r.matchCount > 0 ? (
+                      <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                        <Target className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                        <span className="truncate">
+                          {r.matchCount} {r.matchCount === 1 ? "match" : "matches"}
+                          {r.topMatch ? ` — top: ${r.topMatch}` : ""}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No live matches yet</p>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => setOpenId(r.id)}>
+                      <Eye className="size-4" aria-hidden="true" />
+                      View matches
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <TablePager pagination={listPagination(data)} onPage={setPage} unit="requirements" />
+          </>
+        )}
+      </AdminCard>
+
+      {openId ? (
+        <RequirementDetailDialog
+          requirementId={openId}
+          canAssign={false}
+          teamMembers={[]}
+          onOpenChange={(open) => {
+            if (!open) setOpenId(null);
+          }}
+          onChanged={onRefresh}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ============================================================
 // Tasks tab
 // ============================================================
 
@@ -1202,6 +1358,9 @@ export function TeamDashboard({ initialTab }: { initialTab?: string }) {
             />
           ) : null}
           {tab === "leads" ? <TeamLeadsTab onOpenLead={openLead} refreshKey={refreshKey} /> : null}
+          {tab === "requirements" ? (
+            <TeamRequirementsTab refreshKey={refreshKey} onRefresh={bumpRefresh} />
+          ) : null}
           {tab === "visits" ? (
             <VisitsBoard
               title="Site visits"

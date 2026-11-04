@@ -1,6 +1,6 @@
 // Vasati — Indian Real Estate Marketplace
 // Prisma schema (PostgreSQL-portable design, running on SQLite in this environment)
-// Roles: BUYER | SELLER | BUILDER | ADMIN  (string constants — see src/lib/constants.ts)
+// Roles: BUYER | SELLER | BUILDER | TEAM | ADMIN  (string constants — see src/lib/constants.ts)
 
 generator client {
   provider = "prisma-client-js"
@@ -35,8 +35,11 @@ model User {
   favourites         Favourite[]
   leads              Lead[]            @relation("BuyerLeads")
   assignedLeads      Lead[]            @relation("AssignedLeads")
+  requirements       Requirement[]     @relation("BuyerRequirements")
+  assignedRequirements Requirement[]   @relation("AssignedRequirements")
   leadActivities    LeadActivity[]
-  siteVisits        SiteVisit[]
+  siteVisits        SiteVisit[]       @relation("BuyerVisits")
+  assignedVisits    SiteVisit[]       @relation("AssignedVisits")
   sellerAgreements  SellerAgreement[]
   transactions      Transaction[]     @relation("BuyerTransactions")
   notifications     Notification[]
@@ -164,6 +167,11 @@ model Property {
   project            Project? @relation(fields: [projectId], references: [id])
   status             String   @default("PENDING") // DRAFT | PENDING | PUBLISHED | REJECTED | INACTIVE | SOLD
   rejectionReason    String?
+  // Legal / document verification — kept strictly separate from listing
+  // quality checks and identity checks. Drives the public "Vasati Verified"
+  // badge; must only be set to VERIFIED after ownership documents were
+  // actually reviewed by Vasati.
+  verificationStatus String   @default("NONE") // NONE | REQUESTED | VERIFIED | REJECTED
   availability       String   @default("AVAILABLE") // AVAILABLE | RESERVED | SOLD
   featured           Boolean  @default(false)
   views              Int      @default(0)
@@ -231,6 +239,40 @@ model Favourite {
 }
 
 // ============================================================
+// BUYER REQUIREMENTS ("Post Your Requirement")
+// Intake for buyers whose ideal home may not be listed yet —
+// matched server-side against approved inventory for the team.
+// ============================================================
+
+model Requirement {
+  id           String   @id @default(uuid())
+  reference    String   @unique // e.g. VAS-REQ-2025-000132
+  buyerId      String?
+  buyer        User?    @relation("BuyerRequirements", fields: [buyerId], references: [id])
+  name         String
+  phone        String
+  email        String?
+  purpose      String   @default("BUY") // BUY | RENT
+  city         String
+  localities   String? // comma-separated preferred localities
+  propertyType String   @default("Any") // Any | Apartment | Villa | ...
+  bhk          Int?
+  budgetMin    Int?
+  budgetMax    Int?
+  notes        String?
+  source       String   @default("Website")
+  status       String   @default("NEW") // NEW | MATCHED | CONTACTED | QUALIFIED | CONVERTED | LOST
+  assignedToId String?
+  assignedTo   User?    @relation("AssignedRequirements", fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([city, createdAt])
+}
+
+// ============================================================
 // LEAD CRM
 // ============================================================
 
@@ -289,13 +331,15 @@ model SiteVisit {
   propertyId     String
   property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   buyerId        String?
-  buyer          User?    @relation(fields: [buyerId], references: [id])
+  buyer          User?    @relation("BuyerVisits", fields: [buyerId], references: [id])
   leadId         String?
   lead           Lead?    @relation(fields: [leadId], references: [id])
   preferredDate  DateTime
   preferredTime  String // e.g. "11:00 AM"
   contactName    String
   contactPhone   String
+  assignedToId   String? // team member coordinating the visit
+  assignedTo     User?    @relation("AssignedVisits", fields: [assignedToId], references: [id])
   status         String   @default("REQUESTED") // REQUESTED | CONFIRMED | RESCHEDULED | COMPLETED | CANCELLED
   notes          String?
   createdAt      DateTime @default(now())
@@ -303,6 +347,7 @@ model SiteVisit {
 
   @@index([propertyId])
   @@index([buyerId])
+  @@index([assignedToId])
   @@index([status])
 }
 

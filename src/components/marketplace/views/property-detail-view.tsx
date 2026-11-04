@@ -49,7 +49,7 @@ import { EnquiryForm } from "../shared/enquiry-form";
 import { ImageGallery } from "../shared/image-gallery";
 import { PropertyCard } from "../shared/property-card";
 import { EmptyState, SectionHeading } from "../shared/section";
-import { StatusBadge, VerifiedBadge } from "../shared/status-badge";
+import { StatusBadge, VerifiedBadge, ListingVerifiedBadge } from "../shared/status-badge";
 import { VisitDialog } from "../shared/visit-dialog";
 
 // ------------------------------------------------------------------
@@ -171,7 +171,8 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
     CONSTRUCTION_STATUSES.find((c) => c.value === property.constructionStatus)?.label ??
     property.constructionStatus.replace(/_/g, " ");
   const sellerName = property.builder?.companyName ?? property.seller.name;
-  const sellerBadgeLabel = property.builder ? "Verified Builder" : "Verified Owner";
+  // Identity-scoped label — an ID check is NOT listing verification.
+  const sellerBadgeLabel = "ID Verified";
 
   const mapsUrl =
     property.latitude != null && property.longitude != null
@@ -297,6 +298,9 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
               status={property.availability}
               className={sold ? "px-3 py-1 text-xs" : undefined}
             />
+            {/* Listing-level legal verification — only shown when Vasati
+                actually completed document verification for this listing. */}
+            {property.verificationStatus === "VERIFIED" && <ListingVerifiedBadge />}
             {property.featured && (
               <Badge className="border border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-100">
                 Featured
@@ -457,7 +461,9 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{sellerName}</p>
                 <div className="mt-1">
-                  <VerifiedBadge verified={property.seller.isVerified} label={sellerBadgeLabel} />
+                  {property.seller.isVerified ? (
+                    <VerifiedBadge verified={true} label={sellerBadgeLabel} />
+                  ) : null}
                 </div>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   Member since {formatMonthYear(property.seller.memberSince)}

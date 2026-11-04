@@ -25,6 +25,13 @@ export function leadReference(): string {
   return `VAS-${year}-${num}`;
 }
 
+/** Requirement reference, e.g. VAS-REQ-2025-000132 */
+export function requirementReference(): string {
+  const year = new Date().getFullYear();
+  const num = Math.floor(100000 + Math.random() * 900000);
+  return `VAS-REQ-${year}-${num}`;
+}
+
 /** Transaction reference, e.g. VAS-TXN-2025-00187 */
 export function transactionReference(): string {
   const year = new Date().getFullYear();

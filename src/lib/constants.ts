@@ -49,6 +49,29 @@ export const PROPERTY_STATUSES = [
 
 export const AVAILABILITY_STATUSES = ["AVAILABLE", "RESERVED", "SOLD"] as const;
 
+// Legal / document verification of a listing — deliberately separate from
+// listing quality checks (status) and identity checks (User.isVerified).
+export const VERIFICATION_STATUSES = [
+  { value: "NONE", label: "Not verified" },
+  { value: "REQUESTED", label: "Verification requested" },
+  { value: "VERIFIED", label: "Vasati Verified" },
+  { value: "REJECTED", label: "Verification rejected" },
+] as const;
+
+export const REQUIREMENT_STATUSES = [
+  { value: "NEW", label: "New", tone: "bg-sky-100 text-sky-800" },
+  { value: "MATCHED", label: "Matched", tone: "bg-teal-100 text-teal-800" },
+  { value: "CONTACTED", label: "Contacted", tone: "bg-amber-100 text-amber-800" },
+  { value: "QUALIFIED", label: "Qualified", tone: "bg-violet-100 text-violet-800" },
+  { value: "CONVERTED", label: "Converted", tone: "bg-emerald-100 text-emerald-800" },
+  { value: "LOST", label: "Lost", tone: "bg-rose-100 text-rose-800" },
+] as const;
+
+export const REQUIREMENT_PURPOSES = [
+  { value: "BUY", label: "Buy" },
+  { value: "RENT", label: "Rent" },
+] as const;
+
 export const LEAD_STATUSES = [
   { value: "NEW", label: "New", tone: "bg-sky-100 text-sky-800" },
   { value: "CONTACTED", label: "Contacted", tone: "bg-amber-100 text-amber-800" },

@@ -73,6 +73,7 @@ export function toCard(p: PropertyWithList) {
     constructionStatus: p.constructionStatus,
     availability: p.availability,
     status: p.status,
+    verificationStatus: p.verificationStatus,
     featured: p.featured,
     views: p.views,
     createdAt: p.createdAt.toISOString(),
@@ -115,6 +116,7 @@ export function toDetail(p: PropertyWithDetail, similar: PropertyWithList[] = []
     rejectionReason: p.rejectionReason,
     availability: p.availability,
     status: p.status,
+    verificationStatus: p.verificationStatus,
     featured: p.featured,
     views: p.views,
     createdAt: p.createdAt.toISOString(),
@@ -284,6 +286,7 @@ export const visitInclude = {
       builder: { select: { companyName: true } },
     },
   },
+  assignedTo: { select: { id: true, name: true } },
 } satisfies Prisma.SiteVisitInclude;
 
 type VisitWithRelations = Prisma.SiteVisitGetPayload<{ include: typeof visitInclude }>;
@@ -296,6 +299,7 @@ export function toVisitDTO(v: VisitWithRelations) {
     preferredTime: v.preferredTime,
     contactName: v.contactName,
     contactPhone: v.contactPhone,
+    assignedTo: v.assignedTo,
     status: v.status,
     notes: v.notes,
     createdAt: v.createdAt.toISOString(),
@@ -310,5 +314,67 @@ export function toVisitDTO(v: VisitWithRelations) {
       mainImage: img?.url ?? null,
       ownerName: v.property.builder?.companyName ?? v.property.seller.name,
     },
+  };
+}
+
+// ---------- Requirements ----------
+
+export const requirementInclude = {
+  assignedTo: { select: { id: true, name: true } },
+  buyer: { select: { id: true, name: true, email: true } },
+} satisfies Prisma.RequirementInclude;
+
+type RequirementWithRelations = Prisma.RequirementGetPayload<{ include: typeof requirementInclude }>;
+
+export function toRequirementDTO(r: RequirementWithRelations) {
+  return {
+    id: r.id,
+    reference: r.reference,
+    name: r.name,
+    phone: r.phone,
+    email: r.email,
+    purpose: r.purpose,
+    city: r.city,
+    localities: r.localities ? r.localities.split(",").map((l) => l.trim()).filter(Boolean) : [],
+    propertyType: r.propertyType,
+    bhk: r.bhk,
+    budgetMin: r.budgetMin,
+    budgetMax: r.budgetMax,
+    notes: r.notes,
+    source: r.source,
+    status: r.status,
+    assignedTo: r.assignedTo,
+    buyer: r.buyer,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+// Minimal property shape used inside requirement match payloads.
+export const matchPropertyInclude = {
+  images: { orderBy: { sortOrder: "asc" as const }, select: { url: true, isMain: true } },
+} satisfies Prisma.PropertyInclude;
+
+type MatchProperty = Prisma.PropertyGetPayload<{ include: typeof matchPropertyInclude }>;
+
+export function toMatchPropertyDTO(p: MatchProperty) {
+  const img = p.images.find((i) => i.isMain) ?? p.images[0];
+  return {
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    type: p.type,
+    price: p.price,
+    city: p.city,
+    locality: p.locality,
+    bhk: p.bhk,
+    bathrooms: p.bathrooms,
+    carpetArea: p.carpetArea,
+    builtUpArea: p.builtUpArea,
+    constructionStatus: p.constructionStatus,
+    availability: p.availability,
+    reraNumber: p.reraNumber,
+    verificationStatus: p.verificationStatus,
+    mainImage: img?.url ?? null,
   };
 }

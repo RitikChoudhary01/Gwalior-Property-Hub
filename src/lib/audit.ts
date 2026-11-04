@@ -6,7 +6,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 
-export type AuditEntity = "PROPERTY" | "PROJECT" | "USER" | "LEAD" | "TRANSACTION" | "COMMISSION" | "AGREEMENT" | "VISIT" | "SETTING";
+export type AuditEntity = "PROPERTY" | "PROJECT" | "USER" | "LEAD" | "REQUIREMENT" | "TRANSACTION" | "COMMISSION" | "AGREEMENT" | "VISIT" | "SETTING";
 
 export async function audit(
   userId: string | null,

@@ -2,7 +2,8 @@
 
 // ============================================================
 // BuyerDashboard — role dashboard for BUYER accounts.
-// Tabs: overview / favourites / enquiries / visits / profile.
+// Tabs: overview / favourites / requirements / enquiries /
+// visits / profile.
 // Mobile: horizontal scrollable tab bar. Desktop: left sidebar.
 // The active tab syncs to the URL (?tab=…) with replace.
 // ============================================================
@@ -12,6 +13,8 @@ import { toast } from "sonner";
 import {
   ArrowRight,
   CalendarDays,
+  ChevronDown,
+  ClipboardList,
   Heart,
   LayoutDashboard,
   Loader2,
@@ -19,19 +22,50 @@ import {
   Mail,
   MessageSquareText,
   Phone,
+  PlusCircle,
   Search,
+  Sparkles,
   UserRound,
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import { useAppStore } from "@/store/use-app-store";
-import { formatDate, formatMonthYear, formatNumber, formatPrice, initials } from "@/lib/format";
-import type { BuyerStats, LeadDTO, Paginated, PropertyCardDTO, SiteVisitDTO } from "@/lib/types";
+import { REQUIREMENT_PURPOSES } from "@/lib/constants";
+import {
+  formatConfig,
+  formatDate,
+  formatMonthYear,
+  formatNumber,
+  formatPrice,
+  formatPriceRange,
+  initials,
+} from "@/lib/format";
+import type {
+  BuyerStats,
+  LeadDTO,
+  Paginated,
+  PropertyCardDTO,
+  RequirementDTO,
+  RequirementMatchDTO,
+  SiteVisitDTO,
+} from "@/lib/types";
 import { EmptyState, SectionHeading, StatCard } from "../../shared/section";
 import { StatusBadge } from "../../shared/status-badge";
 import { PropertyCard } from "../../shared/property-card";
+import {
+  RequirementForm,
+  RequirementMatchesList,
+  type RequirementPostResult,
+} from "../../shared/requirement-form";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +84,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "favourites", label: "Favourites", icon: Heart },
+  { id: "requirements", label: "My requirements", icon: ClipboardList },
   { id: "enquiries", label: "Enquiries", icon: MessageSquareText },
   { id: "visits", label: "Site visits", icon: CalendarDays },
   { id: "profile", label: "Profile", icon: UserRound },
@@ -244,6 +279,185 @@ function FavouritesTab() {
       {shown.map((p) => (
         <PropertyCard key={p.id} property={p} />
       ))}
+    </div>
+  );
+}
+
+// ============================================================
+// Requirements tab (buyer's posted requirements + live matches)
+// ============================================================
+
+type RequirementListItem = RequirementDTO & { matchCount: number; topMatch: string | null };
+
+interface RequirementsListResponse {
+  items: RequirementListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Live matches for one requirement — loaded on expand from the detail endpoint. */
+function RequirementMatches({ requirementId }: { requirementId: string }) {
+  const { data, loading, error, refetch } = useApiData<{
+    requirement: RequirementDTO;
+    matches: RequirementMatchDTO[];
+  }>(`/api/requirements/${requirementId}`);
+
+  if (loading) {
+    return (
+      <div className="space-y-3.5">
+        <Skeleton className="h-5 w-64" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
+            <Skeleton key={i} className="h-72 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) return <ErrorState message={error ?? "Please try again."} onRetry={refetch} />;
+
+  return <RequirementMatchesList matches={data.matches} />;
+}
+
+function RequirementsTab() {
+  const [postOpen, setPostOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data, loading, error, refetch } = useApiData<RequirementsListResponse>(
+    "/api/requirements?pageSize=50"
+  );
+
+  const items = data?.items ?? [];
+
+  function handlePosted(res: RequirementPostResult) {
+    refetch();
+    setExpandedId(res.requirement.id); // reveal the new requirement with its matches
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-foreground">My requirements</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Tell us what you&rsquo;re looking for — we source homes on and off the market and call you
+            with matches.
+          </p>
+        </div>
+        <Button type="button" onClick={() => setPostOpen(true)}>
+          <PlusCircle className="size-4" aria-hidden="true" />
+          Post a requirement
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(2)].map((_, i) => (
+            <Skeleton key={i} className="h-36 rounded-xl" />
+          ))}
+        </div>
+      ) : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={<ClipboardList className="size-6" aria-hidden="true" />}
+          title="You haven't posted a requirement yet"
+          description="Can't find the right home? Post what you need — we'll search approved inventory on and off the market and call you with matches."
+          action={
+            <Button type="button" onClick={() => setPostOpen(true)}>
+              Post a requirement
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {items.map((r) => {
+            const expanded = expandedId === r.id;
+            const purposeLabel =
+              REQUIREMENT_PURPOSES.find((p) => p.value === r.purpose)?.label ?? r.purpose;
+            const config =
+              r.propertyType === "Any" && !r.bhk ? "Any home" : formatConfig(r.bhk, r.propertyType);
+            return (
+              <article key={r.id} className="rounded-xl border bg-card shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : r.id)}
+                  aria-expanded={expanded}
+                  aria-controls={`${r.id}-matches`}
+                  className="w-full rounded-xl p-4 text-left sm:p-5"
+                >
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-[15px] font-medium text-foreground">{r.reference}</span>
+                        <StatusBadge status={r.status} />
+                      </span>
+                      <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">
+                        {purposeLabel} · {config} · {r.city}
+                        {r.localities.length > 0 && ` — ${r.localities.join(", ")}`}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-300",
+                        expanded && "rotate-180"
+                      )}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3 text-[13px] text-muted-foreground">
+                    <span>
+                      Budget:{" "}
+                      <span className="font-medium text-foreground">
+                        {formatPriceRange(r.budgetMin, r.budgetMax)}
+                      </span>
+                    </span>
+                    {r.matchCount > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 font-medium text-primary">
+                        <Sparkles className="size-4" aria-hidden="true" />
+                        {r.matchCount} {r.matchCount === 1 ? "match" : "matches"}
+                      </span>
+                    ) : (
+                      <span>Advisor sourcing options</span>
+                    )}
+                    <span className="sm:ml-auto">Posted {formatDate(r.createdAt)}</span>
+                  </span>
+                  {r.matchCount > 0 && r.topMatch && (
+                    <span className="mt-1.5 block truncate text-[13px] text-muted-foreground">
+                      Top match: <span className="font-medium text-foreground">{r.topMatch}</span>
+                    </span>
+                  )}
+                </button>
+
+                {expanded && (
+                  <div id={`${r.id}-matches`} className="px-4 pb-5 sm:px-5">
+                    {r.notes && (
+                      <p className="mb-4 rounded-lg bg-muted/60 px-3.5 py-2.5 text-sm leading-relaxed text-muted-foreground">
+                        &ldquo;{r.notes}&rdquo;
+                      </p>
+                    )}
+                    <RequirementMatches requirementId={r.id} />
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={postOpen} onOpenChange={setPostOpen}>
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display">Post a requirement</DialogTitle>
+            <DialogDescription>
+              Tell us what you&rsquo;re looking for — we&rsquo;ll match it against approved inventory and
+              an advisor will call you within 24 hours.
+            </DialogDescription>
+          </DialogHeader>
+          <RequirementForm idPrefix="dash-req" onPosted={handlePosted} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -644,7 +858,7 @@ export function BuyerDashboard({ initialTab }: { initialTab?: string }) {
           Welcome back, {firstName}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Track your saved homes, enquiries and site visits in one place.
+          Track your saved homes, requirements, enquiries and site visits in one place.
         </p>
       </header>
 
@@ -707,6 +921,7 @@ export function BuyerDashboard({ initialTab }: { initialTab?: string }) {
         <div className="mt-6 min-w-0 lg:mt-0">
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "favourites" && <FavouritesTab />}
+          {activeTab === "requirements" && <RequirementsTab />}
           {activeTab === "enquiries" && <EnquiriesTab />}
           {activeTab === "visits" && <VisitsTab />}
           {activeTab === "profile" && <ProfileTab />}
