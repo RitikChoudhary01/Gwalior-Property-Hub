@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Mail, Phone, MapPin, Clock, Send, Loader2 } from "lucide-react";
+import { Mail, Phone, MapPin, Clock, Send, Loader2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +44,17 @@ const INFO_CARDS = [
     href: `tel:${BRAND.supportPhone.replace(/\s+/g, "")}`,
   },
   {
+    icon: MessageCircle,
+    label: "WhatsApp",
+    lines: [BRAND.supportPhone],
+    href: `https://wa.me/${BRAND.whatsappDigits}?text=${encodeURIComponent(
+      "Hello! I'd like to enquire about properties on Gwalior Property Hub."
+    )}`,
+  },
+  {
     icon: MapPin,
     label: "Office",
-    lines: ["Bengaluru", "Karnataka, India"],
+    lines: ["Gwalior", "Madhya Pradesh, India"],
   },
   {
     icon: Clock,

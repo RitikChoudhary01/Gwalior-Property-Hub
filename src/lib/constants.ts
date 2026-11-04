@@ -134,8 +134,14 @@ export const AMENITIES = [
   "Car Parking",
 ] as const;
 
-// Popular Indian residential cities with states and prominent localities
+// Popular Indian residential cities with states and prominent localities.
+// Gwalior (home city of the brand) leads the list.
 export const CITIES: { city: string; state: string; localities: string[] }[] = [
+  {
+    city: "Gwalior",
+    state: "Madhya Pradesh",
+    localities: ["City Centre", "Morar", "Thatipur", "Deendayal Nagar", "Gole Ka Mandir", "Bahodapur"],
+  },
   {
     city: "Mumbai",
     state: "Maharashtra",

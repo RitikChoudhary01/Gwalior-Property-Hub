@@ -39,7 +39,7 @@ import { RequirementForm } from "../shared/requirement-form";
 import { SearchBar } from "../shared/search-bar";
 import { SectionHeading } from "../shared/section";
 
-const HOME_CITIES = ["Mumbai", "Bengaluru", "Pune", "Hyderabad", "Gurugram", "Noida"];
+const HOME_CITIES = ["Gwalior", "Mumbai", "Bengaluru", "Pune", "Hyderabad", "Gurugram"];
 
 const CATEGORY_TILES: { type: string; label: string; icon: typeof Building2; blurb: string }[] = [
   { type: "Apartment", label: "Apartment", icon: Building2, blurb: "Community living with shared amenities" },

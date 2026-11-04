@@ -3,7 +3,7 @@
 import { useAppStore } from "@/store/use-app-store";
 import { Logo } from "./shared/logo";
 import { BRAND, PROPERTY_TYPES } from "@/lib/constants";
-import { Mail, Phone, MapPin, Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
+import { Mail, Phone, MapPin, Facebook, Instagram, Linkedin, Twitter, MessageCircle } from "lucide-react";
 
 export function Footer() {
   const navigate = useAppStore((s) => s.navigate);
@@ -116,11 +116,24 @@ export function Footer() {
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
+                <MessageCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <a
+                  href={`https://wa.me/${BRAND.whatsappDigits}?text=${encodeURIComponent(
+                    "Hello! I'd like to enquire about properties on Gwalior Property Hub."
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-background"
+                >
+                  WhatsApp us
+                </a>
+              </li>
+              <li className="flex items-start gap-2.5">
                 <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <span>
                   Gwalior Property Hub Pvt. Ltd.
                   <br />
-                  Bengaluru, Karnataka 560001
+                  Gwalior, Madhya Pradesh 474001
                 </span>
               </li>
             </ul>
