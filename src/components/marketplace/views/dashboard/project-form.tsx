@@ -374,7 +374,7 @@ export function ProjectForm({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="vasati-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
+        <div className="gph-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
           {/* Basics */}
           <fieldset className="grid gap-4">
             <legend className="mb-1 text-sm font-semibold text-foreground">Basics</legend>

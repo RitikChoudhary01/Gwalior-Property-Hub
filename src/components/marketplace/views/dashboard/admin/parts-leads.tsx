@@ -201,7 +201,7 @@ function LeadDetailDialog({
           </div>
         ) : lead ? (
           <>
-            <div className="vasati-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div className="gph-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
               {/* Contact + enquiry details */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-3 rounded-lg border bg-card p-3.5">
@@ -562,7 +562,7 @@ export function AdminLeads() {
           </div>
         ) : (
           <>
-            <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+            <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>

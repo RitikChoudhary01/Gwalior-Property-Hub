@@ -610,7 +610,7 @@ export function RequirementForm({ onPosted, idPrefix = "req", className }: Props
           className="mt-0.5"
           aria-label="Consent to be contacted"
         />
-        I agree to be contacted by Vasati and our advisor team regarding my requirement.
+        I agree to be contacted by Gwalior Property Hub and our advisor team regarding my requirement.
       </label>
 
       <Button type="submit" className="w-full" size="lg" disabled={submitting}>

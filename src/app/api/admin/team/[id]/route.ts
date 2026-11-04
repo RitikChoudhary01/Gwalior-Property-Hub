@@ -56,8 +56,8 @@ export async function PATCH(req: Request, { params }: Params) {
         userId: member.id,
         title: value ? "Account activated" : "Account deactivated",
         message: value
-          ? "Your Vasati team account was re-activated by an administrator."
-          : "Your Vasati team account was deactivated. Contact an administrator if you believe this is a mistake.",
+          ? "Your Gwalior Property Hub team account was re-activated by an administrator."
+          : "Your Gwalior Property Hub team account was deactivated. Contact an administrator if you believe this is a mistake.",
         type: "SYSTEM",
         link: "#/dashboard",
       });

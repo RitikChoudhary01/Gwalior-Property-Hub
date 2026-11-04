@@ -140,7 +140,7 @@ function InviteDialog({ onClose, onInvited }: { onClose: () => void; onInvited: 
                 setEmail(e.target.value);
                 setError(null);
               }}
-              placeholder="name@vasati.in"
+              placeholder="name@gwaliorpropertyhub.in"
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -283,7 +283,7 @@ export function AdminTeam() {
       <TabIntro
         eyebrow="Team"
         title="Internal team"
-        description="Invite and manage Vasati team members. Members work the leads you assign to them — they never see financials, settings or other users' data."
+        description="Invite and manage Gwalior Property Hub team members. Members work the leads you assign to them — they never see financials, settings or other users' data."
         actions={
           <Button onClick={() => setInviteOpen(true)}>
             <UserCog className="size-4" aria-hidden="true" />
@@ -312,7 +312,7 @@ export function AdminTeam() {
             />
           </div>
         ) : (
-          <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+          <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
             <Table>
               <TableHeader>
                 <TableRow>

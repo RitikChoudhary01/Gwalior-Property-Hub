@@ -289,7 +289,7 @@ export function AdminOverview({ onNavigate }: { onNavigate: (tab: string) => voi
           {data.leadsByStatus.length === 0 ? (
             <p className="mt-6 text-sm text-muted-foreground">No leads recorded yet.</p>
           ) : (
-            <div className="vasati-scroll mt-4 max-h-60 space-y-3.5 overflow-y-auto pr-1">
+            <div className="gph-scroll mt-4 max-h-60 space-y-3.5 overflow-y-auto pr-1">
               {data.leadsByStatus.map((s) => (
                 <CountBar
                   key={s.status}

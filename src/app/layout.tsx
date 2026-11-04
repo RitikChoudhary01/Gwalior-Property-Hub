@@ -19,11 +19,11 @@ const display = Fraunces({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: {
-    default: "Vasati — Buy & Sell Residential Property in India",
-    template: "%s | Vasati",
+    default: "Gwalior Property Hub — Buy & Sell Residential Property in India",
+    template: "%s | Gwalior Property Hub",
   },
   description:
-    "Vasati is a premium Indian real estate marketplace. Discover verified residential properties, explore projects from trusted developers, and connect directly with owners and builders.",
+    "Gwalior Property Hub is a premium Indian real estate marketplace. Discover verified residential properties, explore projects from trusted developers, and connect directly with owners and builders.",
   keywords: [
     "real estate India",
     "buy property",
@@ -31,20 +31,20 @@ export const metadata: Metadata = {
     "villas",
     "residential plots",
     "property marketplace",
-    "Vasati",
+    "Gwalior Property Hub",
   ],
-  authors: [{ name: "Vasati Realty" }],
+  authors: [{ name: "Gwalior Property Hub" }],
   openGraph: {
-    title: "Vasati — Find a Place You'll Love to Call Home",
+    title: "Gwalior Property Hub — Find a Place You'll Love to Call Home",
     description:
       "Discover residential properties, explore verified listings and connect with property owners and trusted developers.",
-    siteName: "Vasati",
+    siteName: "Gwalior Property Hub",
     type: "website",
     images: ["/images/hero.png"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Vasati — Find a Place You'll Love to Call Home",
+    title: "Gwalior Property Hub — Find a Place You'll Love to Call Home",
     description: "Premium Indian real estate marketplace for buyers, owners and developers.",
   },
   robots: { index: true, follow: true },

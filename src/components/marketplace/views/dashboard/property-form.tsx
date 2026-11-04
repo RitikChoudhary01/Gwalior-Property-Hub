@@ -576,7 +576,7 @@ export function PropertyForm({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="vasati-scroll max-h-[75vh] space-y-8 overflow-y-auto px-6 py-5">
+      <div className="gph-scroll max-h-[75vh] space-y-8 overflow-y-auto px-6 py-5">
         {/* ---------------- Listing strength (sticky meter) ---------------- */}
         <div className="sticky top-0 z-20 -mx-6 border-b bg-background/95 px-6 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
@@ -620,7 +620,7 @@ export function PropertyForm({
             <p className="text-[11px] leading-snug text-muted-foreground">
               {listingGaps.length === 0
                 ? "This listing is ready to impress buyers."
-                : "Complete listings get significantly more buyer enquiries on Vasati."}
+                : "Complete listings get significantly more buyer enquiries on Gwalior Property Hub."}
             </p>
           </div>
         </div>

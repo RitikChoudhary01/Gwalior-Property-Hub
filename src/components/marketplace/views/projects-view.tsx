@@ -160,7 +160,7 @@ export function ProjectsView() {
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
             Browse apartment complexes, villa enclaves and plotted townships listed by builders on
-            Vasati. Pricing and unit availability are updated by the developers themselves — verify
+            Gwalior Property Hub. Pricing and unit availability are updated by the developers themselves — verify
             RERA registration and project documents before you book.
           </p>
         </div>

@@ -54,7 +54,7 @@ try {
   // 4. The moment of truth — does the session stick?
   await appFrame.waitForSelector("text=Welcome back, Sunita", { timeout: 20000 });
   const cookies = await page.context().cookies(GATEWAY);
-  const session = cookies.find((c) => c.name === "vasati_session") as (typeof cookies)[number] & { partitionKey?: string } | undefined;
+  const session = cookies.find((c) => c.name === "gph_session") as (typeof cookies)[number] & { partitionKey?: string } | undefined;
   check("session cookie stored in 3rd-party context", !!session,
     session ? `SameSite=${session.sameSite} secure=${session.secure} partitionKey=${session.partitionKey ?? "none"}` : "no cookie found");
   check("cookie is CHIPS-partitioned", !!session?.partitionKey);

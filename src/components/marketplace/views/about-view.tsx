@@ -73,12 +73,12 @@ export function AboutView() {
       {/* Page hero */}
       <section className="bg-accent/60">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">About Vasati</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">About Gwalior Property Hub</p>
           <h1 className="mt-3 max-w-3xl font-display text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
             A calmer, more honest way to find and sell homes.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            Vasati is a curated real-estate marketplace for residential India — built around verified
+            Gwalior Property Hub is a curated real-estate marketplace for residential India — built around verified
             listings, respectful conversations and a business model we are happy to explain in one
             sentence.
           </p>
@@ -95,7 +95,7 @@ export function AboutView() {
           <div className="mt-4 space-y-4 text-[15px] leading-relaxed text-muted-foreground">
             <p>
               Buying or selling a home is one of the largest decisions a family makes, yet the
-              process is too often exhausting and opaque. Vasati exists to change that. We operate a
+              process is too often exhausting and opaque. Gwalior Property Hub exists to change that. We operate a
               curated marketplace: listings are reviewed before publication, owners and builders are
               verified, and buyers get the information they need up front.
             </p>
@@ -135,11 +135,11 @@ export function AboutView() {
         </div>
       </section>
 
-      {/* How Vasati works — per audience */}
+      {/* How Gwalior Property Hub works — per audience */}
       <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 sm:pt-16 lg:px-8">
         <motion.div {...fadeUp}>
           <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            How Vasati works
+            How Gwalior Property Hub works
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             One platform, three audiences — each with a clear, guided path.
@@ -179,7 +179,7 @@ export function AboutView() {
               See the difference for yourself
             </h2>
             <p className="mt-2.5 text-sm leading-relaxed text-background/75 sm:text-[15px]">
-              Browse verified listings, or create an account and let Vasati work for you — whether
+              Browse verified listings, or create an account and let Gwalior Property Hub work for you — whether
               you are buying, selling or building.
             </p>
           </div>

@@ -202,7 +202,7 @@ function OverviewTab({
         <StatCard
           label="Published"
           value={formatNumber(data.published)}
-          sub="Live on Vasati"
+          sub="Live on Gwalior Property Hub"
           icon={<CheckCircle2 className="size-5" aria-hidden="true" />}
         />
         <StatCard
@@ -1180,8 +1180,8 @@ function ProfileTab() {
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
           For security, profile details are managed by our team. To change your email address or
           delete your account, contact support at{" "}
-          <a href="mailto:support@vasati.in" className="font-medium text-primary hover:underline">
-            support@vasati.in
+          <a href="mailto:support@gwaliorpropertyhub.in" className="font-medium text-primary hover:underline">
+            support@gwaliorpropertyhub.in
           </a>
           .
         </p>
@@ -1268,7 +1268,7 @@ export function SellerDashboard({ initialTab }: { initialTab?: string }) {
         {/* Mobile: horizontal scrollable tab bar */}
         <nav
           aria-label="Dashboard sections"
-          className="vasati-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:hidden"
+          className="gph-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:hidden"
         >
           {TABS.map((t) => {
             const Icon = t.icon;

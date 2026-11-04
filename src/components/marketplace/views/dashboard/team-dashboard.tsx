@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// TeamDashboard — the internal operations workspace for Vasati
+// TeamDashboard — the internal operations workspace for Gwalior Property Hub
 // team members (invite-only accounts). Members see exclusively
 // the leads assigned to them (enforced server-side) and manage
 // the full operational cycle: contact buyers, update statuses,
@@ -358,7 +358,7 @@ function TeamLeadDialog({
           </div>
         ) : lead ? (
           <>
-            <div className="vasati-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div className="gph-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
               {/* Contact + property */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-3 rounded-lg border bg-card p-3.5">
@@ -396,7 +396,7 @@ function TeamLeadDialog({
                     </Button>
                     {lead.email ? (
                       <Button size="sm" asChild variant="outline">
-                        <a href={`mailto:${lead.email}?subject=Your%20Vasati%20enquiry%20${lead.reference}`}>
+                        <a href={`mailto:${lead.email}?subject=Your%20Gwalior%20Property%20Hub%20enquiry%20${lead.reference}`}>
                           <Mail className="size-4" aria-hidden="true" />
                           Email
                         </a>
@@ -831,7 +831,7 @@ function TeamLeadsTab({ onOpenLead, refreshKey }: { onOpenLead: (leadId: string)
           </div>
         ) : (
           <>
-            <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+            <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1199,7 +1199,7 @@ function TeamProfileTab() {
       <TabIntro
         eyebrow="Profile"
         title="My profile"
-        description="Your internal Vasati staff profile. Contact the administration team to update these details."
+        description="Your internal Gwalior Property Hub staff profile. Contact the administration team to update these details."
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <AdminCard title="Account">
@@ -1230,7 +1230,7 @@ function TeamProfileTab() {
             </div>
           </dl>
         </AdminCard>
-        <AdminCard title="What you can do" description="Your operational permissions as a Vasati team member.">
+        <AdminCard title="What you can do" description="Your operational permissions as a Gwalior Property Hub team member.">
           <ul className="grid gap-3 p-4 text-sm text-muted-foreground sm:p-5">
             {[
               "Work the buyer enquiries assigned to you — call, email and qualify buyers.",
@@ -1273,7 +1273,7 @@ export function TeamDashboard({ initialTab }: { initialTab?: string }) {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Vasati operations</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Gwalior Property Hub operations</p>
           <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Lead workspace
           </h1>
@@ -1327,7 +1327,7 @@ export function TeamDashboard({ initialTab }: { initialTab?: string }) {
 
         <div className="min-w-0 flex-1">
           {/* Mobile tab bar */}
-          <div className="mb-6 flex gap-2 overflow-x-auto vasati-scroll pb-1 lg:hidden">
+          <div className="mb-6 flex gap-2 overflow-x-auto gph-scroll pb-1 lg:hidden">
             {TEAM_TABS.map((t) => {
               const active = tab === t.id;
               return (

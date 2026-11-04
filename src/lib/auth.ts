@@ -10,7 +10,7 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import type { User, Builder } from "@prisma/client";
 
-export const SESSION_COOKIE = "vasati_session";
+export const SESSION_COOKIE = "gph_session";
 const SESSION_DAYS = 30;
 
 // ---------- Password hashing (scrypt) ----------

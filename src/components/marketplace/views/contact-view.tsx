@@ -132,7 +132,7 @@ export function ContactView() {
       <header className="max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Contact</p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Talk to the Vasati team
+          Talk to the Gwalior Property Hub team
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
           Questions about a listing, selling your home or partnering as a builder? Send us a message
@@ -276,7 +276,7 @@ export function ContactView() {
 
             <div className="mt-6 flex items-center justify-between gap-4">
               <p className="text-xs leading-relaxed text-muted-foreground">
-                By sending this message you consent to Vasati contacting you about your enquiry.
+                By sending this message you consent to Gwalior Property Hub contacting you about your enquiry.
               </p>
               <Button type="submit" size="lg" disabled={submitting} className="shrink-0">
                 {submitting ? (

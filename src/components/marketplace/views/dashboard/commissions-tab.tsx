@@ -62,7 +62,7 @@ function AgreementsList({ agreements }: { agreements: MyAgreementsDTO["agreement
       <EmptyState
         icon={<FileText className="size-6" aria-hidden="true" />}
         title="No commission agreement yet"
-        description="Vasati charges a commission only when a deal closes. Our team sets up your agreement before your first transaction — nothing to pay to list or enquire."
+        description="Gwalior Property Hub charges a commission only when a deal closes. Our team sets up your agreement before your first transaction — nothing to pay to list or enquire."
       />
     );
   }
@@ -279,9 +279,9 @@ export function CommissionsTab({ partyLabel }: { partyLabel: string }) {
             Commission &amp; payments
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            As a {partyLabel.toLowerCase()}, you pay Vasati a service commission only when a sale closes.
+            As a {partyLabel.toLowerCase()}, you pay Gwalior Property Hub a service commission only when a sale closes.
             Your agreement terms and every payment are recorded below — amounts are maintained by the
-            Vasati team, so figures always reflect the official ledger.
+            Gwalior Property Hub team, so figures always reflect the official ledger.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={refetch} className="gap-2">
@@ -305,7 +305,7 @@ export function CommissionsTab({ partyLabel }: { partyLabel: string }) {
         <StatCard
           label="Outstanding"
           value={outstanding > 0 ? formatPriceFull(outstanding) : "Nothing due"}
-          sub={outstanding > 0 ? "Payable to Vasati" : "All settled"}
+          sub={outstanding > 0 ? "Payable to Gwalior Property Hub" : "All settled"}
           icon={<IndianRupee className={cn("size-5", outstanding > 0 && "text-rose-600")} aria-hidden="true" />}
         />
       </div>
@@ -315,7 +315,7 @@ export function CommissionsTab({ partyLabel }: { partyLabel: string }) {
           Your agreements
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Commission terms agreed with the Vasati team.
+          Commission terms agreed with the Gwalior Property Hub team.
         </p>
         <div className="mt-4">
           <AgreementsList agreements={data?.agreements ?? []} />

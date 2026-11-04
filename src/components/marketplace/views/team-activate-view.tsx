@@ -104,7 +104,7 @@ export function TeamActivateView() {
         });
         useAppStore.getState().setUser(user);
         useAppStore.getState().loadNotifications();
-        toast.success("Welcome to the Vasati team", { description: `Your account is active, ${user.name.split(" ")[0]}.` });
+        toast.success("Welcome to the Gwalior Property Hub team", { description: `Your account is active, ${user.name.split(" ")[0]}.` });
         navigate("/dashboard", { replace: true });
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Could not activate your account. Please try again.");

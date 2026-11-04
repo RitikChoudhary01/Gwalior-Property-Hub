@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ============================================================
-// use-supabase — switch the Vasati stack onto a Supabase project,
+// use-supabase — switch the Gwalior Property Hub stack onto a Supabase project,
 // WITHOUT losing any existing data.
 //
 // Usage:
@@ -81,7 +81,7 @@ if (wantsSeed) {
 console.log(
   [
     "",
-    "✓ Vasati now runs on Supabase.",
+    "✓ Gwalior Property Hub now runs on Supabase.",
     "  • Database:  Supabase Postgres (24 tables)",
     "  • Data:      every row from db/custom.db carried over (ON CONFLICT DO NOTHING —",
     "               re-runnable, never deletes or overwrites)",

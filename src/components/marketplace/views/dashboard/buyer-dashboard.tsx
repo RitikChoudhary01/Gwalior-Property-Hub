@@ -214,7 +214,7 @@ function OverviewTab() {
         <SectionHeading
           eyebrow="Trending now"
           title="Homes buyers are viewing"
-          description="The most viewed properties on Vasati right now."
+          description="The most viewed properties on Gwalior Property Hub right now."
           linkText="Explore all"
           linkHref="#/properties"
         />
@@ -468,7 +468,7 @@ function RequirementsTab() {
 // ============================================================
 // Enquiries tab (buyer's own enquiries) — each card shows the
 // full assisted journey: pipeline stages, assigned advisor and
-// what happens next. This is Vasati's signature buyer feature.
+// what happens next. This is Gwalior Property Hub's signature buyer feature.
 // ============================================================
 
 function EnquiriesTab() {
@@ -546,7 +546,7 @@ function EnquiriesTab() {
                   </p>
                 )}
               </div>
-              {/* Assigned Vasati advisor */}
+              {/* Assigned Gwalior Property Hub advisor */}
               <div className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
                 <span className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   <UserRoundCheck className="size-3.5" aria-hidden="true" />
@@ -846,8 +846,8 @@ function ProfileTab() {
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
           For security, profile details are managed by our team. To change your email address or delete
           your account, contact support at{" "}
-          <a href="mailto:support@vasati.in" className="font-medium text-primary hover:underline">
-            support@vasati.in
+          <a href="mailto:support@gwaliorpropertyhub.in" className="font-medium text-primary hover:underline">
+            support@gwaliorpropertyhub.in
           </a>
           .
         </p>
@@ -911,7 +911,7 @@ export function BuyerDashboard({ initialTab }: { initialTab?: string }) {
         {/* Mobile: horizontal scrollable tab bar */}
         <nav
           aria-label="Dashboard sections"
-          className="vasati-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:hidden"
+          className="gph-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:hidden"
         >
           {TABS.map((t) => {
             const Icon = t.icon;

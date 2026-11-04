@@ -44,7 +44,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Vasati design tokens — warm neutrals, deep navy ink, sophisticated green */
+/* Gwalior Property Hub design tokens — warm neutrals, deep navy ink, sophisticated green */
 :root {
   --radius: 0.625rem;
 
@@ -143,18 +143,18 @@
 }
 
 /* Refined scrollbar for long lists */
-.vasati-scroll::-webkit-scrollbar {
+.gph-scroll::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-.vasati-scroll::-webkit-scrollbar-track {
+.gph-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-.vasati-scroll::-webkit-scrollbar-thumb {
+.gph-scroll::-webkit-scrollbar-thumb {
   background: oklch(0.85 0.015 85);
   border-radius: 999px;
 }
-.vasati-scroll::-webkit-scrollbar-thumb:hover {
+.gph-scroll::-webkit-scrollbar-thumb:hover {
   background: oklch(0.78 0.02 85);
 }
 

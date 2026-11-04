@@ -113,7 +113,7 @@ export async function PATCH(req: Request, { params }: Params) {
         await notify({
           userId: builder.userId,
           title: "Project approved",
-          message: `${project.name} is now live on Vasati.`,
+          message: `${project.name} is now live on Gwalior Property Hub.`,
           type: "LISTING",
           link: `#/projects/${project.slug}`,
         });

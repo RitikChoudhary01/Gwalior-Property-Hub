@@ -125,7 +125,7 @@ export function RegisterView() {
       useAppStore.getState().loadNotifications();
       useAppStore.getState().loadFavourites();
       toast.success("Account created", {
-        description: `Welcome to Vasati, ${user.name.split(" ")[0]}.`,
+        description: `Welcome to Gwalior Property Hub, ${user.name.split(" ")[0]}.`,
       });
       navigate("/dashboard");
     } catch (err) {
@@ -150,7 +150,7 @@ export function RegisterView() {
           Create your account
         </h1>
         <p className="mt-1.5 text-center text-sm text-muted-foreground">
-          Choose how you plan to use Vasati — you can always do more later.
+          Choose how you plan to use Gwalior Property Hub — you can always do more later.
         </p>
 
         {/* Role selection */}

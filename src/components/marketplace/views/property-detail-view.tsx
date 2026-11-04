@@ -46,7 +46,7 @@ import {
   formatSignedPct,
   initials,
 } from "@/lib/format";
-import { CONSTRUCTION_STATUSES } from "@/lib/constants";
+import { BRAND, CONSTRUCTION_STATUSES } from "@/lib/constants";
 import { useAppStore } from "@/store/use-app-store";
 import type { PropertyDetailDTO } from "@/lib/types";
 import { EnquiryForm } from "../shared/enquiry-form";
@@ -186,12 +186,11 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
           `${property.locality}, ${property.city}`
         )}`;
 
-  const waDigits = property.seller.phone?.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "") ?? "";
-  const waUrl = waDigits
-    ? `https://wa.me/91${waDigits}?text=${encodeURIComponent(
-        `Hello, I found your listing "${property.title}" (${formatPrice(property.price)}) on Vasati. Is it still available?`
-      )}`
-    : "";
+  // WhatsApp enquiries route to the platform number (+91 70116 45976) —
+  // in the assisted model the team coordinates buyer conversations.
+  const waUrl = `https://wa.me/${BRAND.whatsappDigits}?text=${encodeURIComponent(
+    `Hello, I found your listing "${property.title}" (${formatPrice(property.price)}) on ${BRAND.name}. Is it still available?`
+  )}`;
 
   const paragraphs = property.description
     .split(/\n+/)
@@ -313,7 +312,7 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
               status={property.availability}
               className={sold ? "px-3 py-1 text-xs" : undefined}
             />
-            {/* Listing-level legal verification — only shown when Vasati
+            {/* Listing-level legal verification — only shown when Gwalior Property Hub
                 actually completed document verification for this listing. */}
             {property.verificationStatus === "VERIFIED" && <ListingVerifiedBadge />}
             {property.featured && (
@@ -398,7 +397,7 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Live market data from {property.localityInsights.listingCount}{" "}
                 {property.localityInsights.listingCount === 1 ? "other home" : "other homes"} listed
-                on Vasati right now.
+                on Gwalior Property Hub right now.
               </p>
 
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -538,7 +537,7 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
         </div>
 
         {/* Right sidebar */}
-        <aside className="space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto vasati-scroll">
+        <aside className="space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto gph-scroll">
           <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
             <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
               {formatPrice(property.price)}

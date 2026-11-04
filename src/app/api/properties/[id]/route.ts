@@ -192,7 +192,7 @@ export async function PATCH(req: Request, { params }: Params) {
       await notify({
         userId: property.sellerId,
         title: "Listing approved",
-        message: `"${property.title}" is now live on Vasati.`,
+        message: `"${property.title}" is now live on Gwalior Property Hub.`,
         type: "LISTING",
         link: `#/properties/${property.slug}`,
       });
@@ -213,11 +213,11 @@ export async function PATCH(req: Request, { params }: Params) {
       const messages: Record<string, { title: string; message: string }> = {
         REQUESTED: {
           title: "Verification documents requested",
-          message: `Please share ownership documents for "${property.title}" so Vasati can verify this listing.`,
+          message: `Please share ownership documents for "${property.title}" so Gwalior Property Hub can verify this listing.`,
         },
         VERIFIED: {
           title: "Listing verified",
-          message: `"${property.title}" is now Vasati Verified — ownership documents reviewed. Verified listings earn more buyer trust.`,
+          message: `"${property.title}" is now GPH Verified — ownership documents reviewed. Verified listings earn more buyer trust.`,
         },
         REJECTED: {
           title: "Verification could not be completed",

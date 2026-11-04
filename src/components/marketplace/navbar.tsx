@@ -58,7 +58,7 @@ export function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <a
           href="#/"
-          aria-label="Vasati — home"
+          aria-label="Gwalior Property Hub — home"
           onClick={(e) => {
             e.preventDefault();
             navigate("/");
@@ -191,7 +191,7 @@ export function Navbar() {
                       </button>
                     )}
                   </div>
-                  <div className="vasati-scroll max-h-80 overflow-y-auto">
+                  <div className="gph-scroll max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
                       <p className="px-4 py-8 text-center text-sm text-muted-foreground">No notifications yet.</p>
                     ) : (

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-/** Vasati brand mark — a refined "V" arch over a foundation line. */
+/** Gwalior Property Hub brand mark — an arch over a foundation line. */
 export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5 select-none", className)}>
@@ -27,7 +27,8 @@ export function Logo({ className, compact = false }: { className?: string; compa
       </span>
       {!compact && (
         <span className="font-display text-[1.35rem] font-semibold tracking-tight text-foreground">
-          Vasati
+          Gwalior{" "}
+          <span className="font-normal text-foreground/60">Property Hub</span>
         </span>
       )}
     </span>

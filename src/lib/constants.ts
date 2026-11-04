@@ -1,5 +1,5 @@
 // ============================================================
-// Vasati domain constants — single source of truth for roles,
+// Gwalior Property Hub domain constants — single source of truth for roles,
 // statuses, cities, amenities and option lists used across
 // forms, filters and dashboards.
 // ============================================================
@@ -54,7 +54,7 @@ export const AVAILABILITY_STATUSES = ["AVAILABLE", "RESERVED", "SOLD"] as const;
 export const VERIFICATION_STATUSES = [
   { value: "NONE", label: "Not verified" },
   { value: "REQUESTED", label: "Verification requested" },
-  { value: "VERIFIED", label: "Vasati Verified" },
+  { value: "VERIFIED", label: "GPH Verified" },
   { value: "REJECTED", label: "Verification rejected" },
 ] as const;
 
@@ -226,8 +226,12 @@ export const VISIT_TIME_SLOTS = [
 ];
 
 export const BRAND = {
-  name: "Vasati",
+  name: "Gwalior Property Hub",
+  shortName: "GPH",
   tagline: "Find a place you'll love to call home.",
-  supportEmail: "support@vasati.in",
-  supportPhone: "+91 80 4718 2200",
+  supportEmail: "support@gwaliorpropertyhub.in",
+  // WhatsApp & calls: +91 70116 45976
+  supportPhone: "+91 70116 45976",
+  // wa.me link target for the WhatsApp enquiry button
+  whatsappDigits: "917011645976",
 };

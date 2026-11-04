@@ -95,7 +95,7 @@ try {
       ["#/properties", /homes across india/i],
       ["#/projects", /residential projects/i],
       ["#/about", /calmer, more honest/i],
-      ["#/contact", /talk to the vasati team/i],
+      ["#/contact", /talk to the gwalior property hub team/i],
       ["#/partner", /grow sales/i],
       ["#/register", /create your account/i],
       ["#/privacy", /privacy policy/i],

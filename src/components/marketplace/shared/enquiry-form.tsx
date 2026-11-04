@@ -151,7 +151,7 @@ export function EnquiryForm({ propertyId, propertyTitle }: Props) {
       </div>
       <label className="flex items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
         <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" aria-label="Consent to be contacted" />
-        I agree to be contacted by Vasati and the property representative regarding this enquiry.
+        I agree to be contacted by Gwalior Property Hub and the property representative regarding this enquiry.
       </label>
       <Button type="submit" className="w-full" size="lg" disabled={submitting}>
         {submitting ? (

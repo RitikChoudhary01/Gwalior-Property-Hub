@@ -1,4 +1,4 @@
-# Vasati — Indian Real Estate Marketplace
+# Gwalior Property Hub — Indian Real Estate Marketplace
 
 A full-stack property marketplace connecting buyers, property owners (sellers), builders/developers, and a platform administration team — with lead CRM, site-visit management, transaction attribution, and commission tracking.
 
@@ -36,7 +36,7 @@ DATABASE_URL=file:/home/z/my-project/db/custom.db   # or: postgresql://... for S
 # Optional external notification channels (integrations skip gracefully when unset)
 EMAIL_PROVIDER_URL=          # transactional email API endpoint
 EMAIL_PROVIDER_KEY=
-EMAIL_FROM="Vasati <no-reply@vasati.in>"
+EMAIL_FROM="Gwalior Property Hub <no-reply@gwaliorpropertyhub.in>"
 WHATSAPP_TOKEN=              # WhatsApp Business Cloud API token
 WHATSAPP_PHONE_ID=
 ```
@@ -169,7 +169,7 @@ Seeding is opt-in (`--seed`) because the seed script resets the database first �
 
 ```bash
 # on the server (Ubuntu 22.04+, Node 20+ or Bun 1.1+):
-git clone <your-repo> vasati && cd vasati
+git clone <your-repo> gwalior-property-hub && cd gwalior-property-hub
 cp .env.example .env      # fill in Supabase values
 bun install
 bun scripts/use-supabase.mjs   # schema + data → Supabase (first time only)
@@ -180,7 +180,7 @@ bun run start                   # serves on :3000 (NODE_ENV=production)
 Put a TLS reverse proxy in front (Caddy shown — two lines, automatic HTTPS):
 
 ```
-vasati.example.com {
+gwaliorpropertyhub.example.com {
   reverse_proxy 127.0.0.1:3000
 }
 ```
@@ -188,12 +188,12 @@ vasati.example.com {
 Keep it alive with systemd:
 
 ```ini
-# /etc/systemd/system/vasati.service
+# /etc/systemd/system/gph.service
 [Unit]
-Description=Vasati
+Description=Gwalior Property Hub
 After=network.target
 [Service]
-WorkingDirectory=/opt/vasati
+WorkingDirectory=/opt/gwalior-property-hub
 ExecStart=/usr/bin/bun run start
 Restart=always
 Environment=NODE_ENV=production
@@ -209,7 +209,7 @@ WantedBy=multi-user.target
 
 1. **Storage:** with `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set, `/api/upload` automatically writes listing images to a Supabase Storage bucket (public, name `uploads`, overridable via `SUPABASE_BUCKET`).
 2. **Secrets:** keep `DATABASE_URL` and service-role keys out of the repo (`.env` is git-ignored); rotate the `ADMIN` account password immediately after first login.
-3. **Backups:** nightly `pg_dump` on the Supabase database, e.g. cron: `0 2 * * * pg_dump "$DATABASE_URL" -Fc -f /var/backups/vasati-$(date +\%F).dump`. Your original `db/custom.db` stays in the repo as the demo-data snapshot.
+3. **Backups:** nightly `pg_dump` on the Supabase database, e.g. cron: `0 2 * * * pg_dump "$DATABASE_URL" -Fc -f /var/backups/gph-$(date +\%F).dump`. Your original `db/custom.db` stays in the repo as the demo-data snapshot.
 4. **Legal (India):** configure company details in `src/lib/constants.ts` (BRAND), have counsel review `/terms` and `/privacy` copy, and ensure listing rules comply with RERA advertising requirements before go-live.
 
 ## 9. Scripts

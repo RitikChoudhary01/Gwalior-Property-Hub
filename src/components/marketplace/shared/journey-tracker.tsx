@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// JourneyTracker — the buyer-facing view of the Vasati
+// JourneyTracker — the buyer-facing view of the Gwalior Property Hub
 // assisted pipeline. Every enquiry (lead) progresses through
 // the same stages the internal CRM uses, and this component
 // shows buyers exactly where they stand and what happens next.
@@ -49,7 +49,7 @@ function stageProgress(status: string): { completed: number; active: number; los
 
 /** What the buyer should expect at each status — plain language, no CRM jargon. */
 export const JOURNEY_NEXT_STEP: Record<string, string> = {
-  NEW: "Your Vasati advisor will call you within 24 hours.",
+  NEW: "Your Gwalior Property Hub advisor will call you within 24 hours.",
   CONTACTED: "Your advisor is confirming your requirements and shortlist.",
   QUALIFIED: "We're lining up a site visit at a time that suits you.",
   SITE_VISIT_SCHEDULED: "Your visit is being coordinated — see the Site visits tab.",

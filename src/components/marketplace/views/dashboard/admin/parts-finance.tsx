@@ -368,7 +368,7 @@ export function AdminTransactions() {
             />
           </div>
         ) : (
-          <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+          <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -642,7 +642,7 @@ export function AdminCommissions() {
             />
           </div>
         ) : (
-          <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+          <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1124,7 +1124,7 @@ export function AdminAgreements() {
             />
           </div>
         ) : (
-          <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+          <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
             <Table>
               <TableHeader>
                 <TableRow>

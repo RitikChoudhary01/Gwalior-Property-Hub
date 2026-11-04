@@ -80,7 +80,7 @@ export function ImageGallery({ images, title }: { images: GalleryImage[]; title:
 
       {/* Thumbnails */}
       {images.length > 1 && (
-        <div className="vasati-scroll mt-3 flex gap-2.5 overflow-x-auto pb-1" role="tablist" aria-label="Property photographs">
+        <div className="gph-scroll mt-3 flex gap-2.5 overflow-x-auto pb-1" role="tablist" aria-label="Property photographs">
           {images.map((img, i) => (
             <button
               key={img.url + i}

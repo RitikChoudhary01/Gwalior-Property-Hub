@@ -87,7 +87,7 @@ export async function POST(req: Request) {
         await notify({
           userId: lead.buyerId,
           title: "Site visit scheduled",
-          message: `A Vasati advisor scheduled your visit to "${lead.property.title}" on ${body.preferredDate} at ${body.preferredTime}.`,
+          message: `A Gwalior Property Hub advisor scheduled your visit to "${lead.property.title}" on ${body.preferredDate} at ${body.preferredTime}.`,
           type: "VISIT",
           link: "#/dashboard?tab=visits",
         });

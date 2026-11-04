@@ -131,7 +131,7 @@ function scoreQuality(p: MatchableProperty): { pts: number; reasons: string[] } 
   }
   if (p.verificationStatus === "VERIFIED") {
     pts += 3;
-    reasons.push("Vasati Verified");
+    reasons.push("GPH Verified");
   }
   return { pts, reasons };
 }

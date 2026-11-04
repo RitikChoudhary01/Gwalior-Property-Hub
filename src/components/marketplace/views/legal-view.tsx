@@ -22,7 +22,7 @@ const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "Information we collect",
     body: [
-      "When you browse Vasati, we collect basic technical information such as pages viewed and device type, which helps us keep the platform stable and secure.",
+      "When you browse Gwalior Property Hub, we collect basic technical information such as pages viewed and device type, which helps us keep the platform stable and secure.",
       "When you create an account, submit a listing, send an enquiry or schedule a site visit, we collect the information you provide: your name, email address, phone number, city, and the content of your listings and messages.",
     ],
     bullets: [
@@ -49,7 +49,7 @@ const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "Cookies",
     body: [
-      "Vasati uses a small number of cookies. A session cookie keeps you signed in. Analytics cookies, where enabled, help us understand aggregate usage. You may block or delete cookies in your browser; the platform will continue to work for browsing, though sign-in sessions will not persist.",
+      "Gwalior Property Hub uses a small number of cookies. A session cookie keeps you signed in. Analytics cookies, where enabled, help us understand aggregate usage. You may block or delete cookies in your browser; the platform will continue to work for browsing, though sign-in sessions will not persist.",
     ],
   },
   {
@@ -76,7 +76,7 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "The platform",
     body: [
-      "Vasati is an online marketplace that connects residential property buyers with property owners and builders. Unless explicitly stated in a signed agreement, Vasati is not a broker, agent or representative of either buyers or sellers, and does not negotiate, execute or register transactions on anyone's behalf.",
+      "Gwalior Property Hub is an online marketplace that connects residential property buyers with property owners and builders. Unless explicitly stated in a signed agreement, Gwalior Property Hub is not a broker, agent or representative of either buyers or sellers, and does not negotiate, execute or register transactions on anyone's behalf.",
       "Owners and builders list properties on the platform; buyers browse listings and send enquiries. Each party remains responsible for its own decisions, representations and agreements.",
     ],
   },
@@ -101,7 +101,7 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "RERA compliance",
     body: [
-      "Listings on Vasati must comply with the Real Estate (Regulation and Development) Act, 2016 and applicable state rules, including disclosure requirements for projects. Where a RERA registration number is shown, it is provided by the lister.",
+      "Listings on Gwalior Property Hub must comply with the Real Estate (Regulation and Development) Act, 2016 and applicable state rules, including disclosure requirements for projects. Where a RERA registration number is shown, it is provided by the lister.",
       "Buyers are strongly encouraged to independently verify RERA registration and project details on the official RERA portal for the relevant state before making any decision or payment.",
     ],
   },
@@ -114,20 +114,20 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "Commissions and business model",
     body: [
-      "Vasati earns an agreed commission on successful transactions attributed to the platform. The applicable commission — a percentage of the sale value or a fixed fee — is defined in a written agreement signed with each owner or builder before any obligation arises.",
-      "Listing on Vasati is free during early access. Buyers are never charged a fee by Vasati for browsing, enquiring or visiting properties.",
+      "Gwalior Property Hub earns an agreed commission on successful transactions attributed to the platform. The applicable commission — a percentage of the sale value or a fixed fee — is defined in a written agreement signed with each owner or builder before any obligation arises.",
+      "Listing on Gwalior Property Hub is free during early access. Buyers are never charged a fee by Gwalior Property Hub for browsing, enquiring or visiting properties.",
     ],
   },
   {
     heading: "Limitation of liability",
     body: [
-      "Vasati provides the platform on an as-is basis and, to the maximum extent permitted by law, is not liable for losses arising from listings, negotiations, agreements or transactions between users, or from inaccuracies supplied by listers. We do not warrant that the platform will be uninterrupted or error-free.",
+      "Gwalior Property Hub provides the platform on an as-is basis and, to the maximum extent permitted by law, is not liable for losses arising from listings, negotiations, agreements or transactions between users, or from inaccuracies supplied by listers. We do not warrant that the platform will be uninterrupted or error-free.",
     ],
   },
   {
     heading: "Termination",
     body: [
-      "You may stop using Vasati and request account deletion at any time. We may suspend or terminate accounts or remove listings that violate these terms, with notice where practical.",
+      "You may stop using Gwalior Property Hub and request account deletion at any time. We may suspend or terminate accounts or remove listings that violate these terms, with notice where practical.",
     ],
   },
   {
@@ -175,8 +175,8 @@ export function LegalView({ kind }: { kind: "privacy" | "terms" }) {
       <article className="mx-auto max-w-3xl px-4 pt-10 sm:px-6 sm:pt-12 lg:px-8">
         <p className="text-[15px] leading-relaxed text-muted-foreground">
           {isPrivacy
-            ? "This policy explains what information Vasati collects, how we use it, and the choices you have. It applies to the Vasati website and marketplace."
-            : "These terms govern your use of the Vasati marketplace. By creating an account or using the platform, you agree to them."}
+            ? "This policy explains what information Gwalior Property Hub collects, how we use it, and the choices you have. It applies to the Gwalior Property Hub website and marketplace."
+            : "These terms govern your use of the Gwalior Property Hub marketplace. By creating an account or using the platform, you agree to them."}
         </p>
 
         <div className="mt-8 space-y-8">

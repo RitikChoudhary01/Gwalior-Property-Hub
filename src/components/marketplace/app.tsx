@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Vasati marketplace shell — hash-routed SPA on the single
+// Gwalior Property Hub marketplace shell — hash-routed SPA on the single
 // user-visible "/" route. Each view mirrors a classic page.
 // ============================================================
 

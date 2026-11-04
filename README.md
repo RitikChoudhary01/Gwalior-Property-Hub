@@ -1,8 +1,8 @@
-# Vasati — Premium Indian Residential Real Estate Marketplace
+# Gwalior Property Hub — Premium Indian Residential Real Estate Marketplace
 
-Vasati (वासति — "dwelling") is a full-stack, production-grade property marketplace for India, covering the complete brokerage business loop: **listing → moderation → discovery → enquiry CRM → site visits → transaction → commission settlement**.
+Gwalior Property Hub is a full-stack, production-grade property marketplace for India, covering the complete brokerage business loop: **listing → moderation → discovery → enquiry CRM → site visits → transaction → commission settlement**.
 
-![Vasati home](agent-ctx/final-home-desktop.png)
+![Gwalior Property Hub home](agent-ctx/final-home-desktop.png)
 
 ---
 
@@ -56,7 +56,7 @@ The platform implements the brokerage operating model end-to-end — listing →
 
 1. Owners & builders submit listings/projects → held as `PENDING` until an admin approves (rejection carries a reason; drafts supported)
 2. Buyers browse and enquire for **free** — enquiry creates a lead with unique reference (30-day de-dup, rate-limited, consent required); site-visit requests link to the lead by phone
-3. The Vasati team works the lead in the CRM: `NEW → QUALIFIED → NEGOTIATION → BOOKING → CONVERTED`, with assignment, follow-up dates, contact logging, and the buyer's phone/email surfaced for outreach
+3. The Gwalior Property Hub team works the lead in the CRM: `NEW → QUALIFIED → NEGOTIATION → BOOKING → CONVERTED`, with assignment, follow-up dates, contact logging, and the buyer's phone/email surfaced for outreach
 4. The team connects the buyer with the owner/builder (contact details on both sides: sellers/builders see enquiries in their dashboards, admins see owner contacts in the CRM)
 5. Site visits are coordinated in the Visits tab: confirm, reschedule (buyer is notified), complete, or cancel
 6. A transaction can only be recorded for a negotiation/booking/converted lead **with an active agreement** — the signed commission agreement (percentage or fixed fee) is created against the seller/builder first

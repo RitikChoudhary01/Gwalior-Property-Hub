@@ -33,7 +33,7 @@ const VALUE_PROPS = [
   {
     icon: Crosshair,
     title: "Qualified leads with unique references",
-    text: "Every enquiry and site-visit request arrives with a unique reference, so you always know which Vasati buyer you are talking to and can reconcile commissions without guesswork.",
+    text: "Every enquiry and site-visit request arrives with a unique reference, so you always know which Gwalior Property Hub buyer you are talking to and can reconcile commissions without guesswork.",
   },
   {
     icon: CalendarCheck,
@@ -91,10 +91,10 @@ export function PartnerView() {
       <section className="bg-accent/60">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-            Vasati Partner Network
+            Gwalior Property Hub Partner Network
           </p>
           <h1 className="mt-3 max-w-3xl font-display text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
-            Grow Sales with the Vasati Partner Network
+            Grow Sales with the Gwalior Property Hub Partner Network
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
             Publish your projects to a curated audience of serious home buyers, receive attributed
@@ -124,7 +124,7 @@ export function PartnerView() {
       <section className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 sm:pt-20 lg:px-8">
         <motion.div {...fadeUp}>
           <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Why builders partner with Vasati
+            Why builders partner with Gwalior Property Hub
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Everything a developer needs to market, sell and reconcile — without losing sight of
@@ -186,7 +186,7 @@ export function PartnerView() {
         <motion.div {...fadeUp} className="mt-8 flex items-start gap-4 rounded-xl border border-primary/20 bg-primary/5 p-5 sm:p-6">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Partnership terms are governed by a written agreement signed between Vasati and your
+            Partnership terms are governed by a written agreement signed between Gwalior Property Hub and your
             company. The agreement specifies whether commission is a percentage of the sale value or
             a fixed fee, and it applies only to transactions attributed to the platform. Listing is
             free during early access.

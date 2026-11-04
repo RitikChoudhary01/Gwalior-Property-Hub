@@ -388,7 +388,7 @@ function ProjectDetailBody({ project }: { project: ProjectDetailDTO }) {
             ) : (
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 The developer has not published a detailed description yet. Send an enquiry below
-                and the Vasati team will share the brochure and floor plans.
+                and the Gwalior Property Hub team will share the brochure and floor plans.
               </p>
             )}
           </section>
@@ -450,7 +450,7 @@ function ProjectDetailBody({ project }: { project: ProjectDetailDTO }) {
         </div>
 
         {/* Right sidebar */}
-        <aside className="space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto vasati-scroll">
+        <aside className="space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto gph-scroll">
           {/* Builder card */}
           <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">

@@ -717,7 +717,7 @@ export function PropertiesView() {
       {/* Desktop: sticky filter sidebar + results */}
       <div className="mt-6 grid gap-8 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <aside className="hidden self-start lg:sticky lg:top-20 lg:block lg:w-80">
-          <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-5 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto vasati-scroll">
+          <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-5 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto gph-scroll">
             <h2 className="font-display text-lg font-semibold text-foreground">Filters</h2>
             <div className="mt-5">
               <FilterPanel key={panelKey} />

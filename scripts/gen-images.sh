@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generates premium real-estate photography for the Vasati marketplace
+# Generates premium real-estate photography for the Gwalior Property Hub marketplace
 cd /home/z/my-project/public/images || exit 1
 mkdir -p properties
 

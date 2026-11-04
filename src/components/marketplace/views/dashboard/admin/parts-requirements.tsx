@@ -187,7 +187,7 @@ function MatchCard({ match, onOpen }: { match: RequirementMatchDTO; onOpen: (slu
         {match.verificationStatus === "VERIFIED" ? (
           <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white/90 px-2 py-0.5 text-[10px] font-medium text-emerald-800 shadow-sm">
             <ShieldCheck className="size-3 text-emerald-600" aria-hidden="true" />
-            Vasati Verified
+            GPH Verified
           </span>
         ) : null}
       </div>
@@ -328,7 +328,7 @@ export function RequirementDetailDialog({
             />
           </div>
         ) : requirement ? (
-          <div className="vasati-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          <div className="gph-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
             {/* Buyer contact + requirement brief */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-3 rounded-lg border bg-card p-3.5">
@@ -366,7 +366,7 @@ export function RequirementDetailDialog({
                   </Button>
                   {requirement.email ? (
                     <Button size="sm" asChild variant="outline">
-                      <a href={`mailto:${requirement.email}?subject=Your%20Vasati%20requirement%20${requirement.reference}`}>
+                      <a href={`mailto:${requirement.email}?subject=Your%20Gwalior%20Property%20Hub%20requirement%20${requirement.reference}`}>
                         <Mail className="size-4" aria-hidden="true" />
                         Email
                       </a>
@@ -636,7 +636,7 @@ export function AdminRequirements() {
           </div>
         ) : (
           <>
-            <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+            <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>

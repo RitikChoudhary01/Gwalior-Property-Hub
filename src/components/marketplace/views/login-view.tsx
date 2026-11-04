@@ -170,7 +170,7 @@ export function LoginView() {
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          New to Vasati?{" "}
+          New to Gwalior Property Hub?{" "}
           <button
             type="button"
             onClick={() => navigate("/register")}

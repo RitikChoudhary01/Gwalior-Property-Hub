@@ -30,7 +30,7 @@ const html = `<!doctype html>
 </head>
 <body>
 <header>CROSS-SITE IFRAME HARNESS — top-level: localhost:${PORT} · iframe: ${APP_URL}</header>
-<iframe id="app-frame" name="app-frame" src="${APP_URL}/" title="Vasati app under test" allow="clipboard-write"></iframe>
+<iframe id="app-frame" name="app-frame" src="${APP_URL}/" title="Gwalior Property Hub app under test" allow="clipboard-write"></iframe>
 <!-- invisible helper form: POSTs a login into the iframe so the session cookie is set in the third-party partition -->
 <form id="login-form" method="POST" action="${APP_URL}/api/auth/login" target="app-frame" style="display:none">
   <input type="hidden" name="email" value="" id="lf-email" />

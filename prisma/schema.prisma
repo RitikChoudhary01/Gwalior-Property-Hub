@@ -1,4 +1,4 @@
-// Vasati — Indian Real Estate Marketplace
+// Gwalior Property Hub — Indian Real Estate Marketplace
 // Prisma schema (PostgreSQL-portable design, running on SQLite in this environment)
 // Roles: BUYER | SELLER | BUILDER | TEAM | ADMIN  (string constants — see src/lib/constants.ts)
 
@@ -168,9 +168,9 @@ model Property {
   status             String   @default("PENDING") // DRAFT | PENDING | PUBLISHED | REJECTED | INACTIVE | SOLD
   rejectionReason    String?
   // Legal / document verification — kept strictly separate from listing
-  // quality checks and identity checks. Drives the public "Vasati Verified"
+  // quality checks and identity checks. Drives the public "GPH Verified"
   // badge; must only be set to VERIFIED after ownership documents were
-  // actually reviewed by Vasati.
+  // actually reviewed by Gwalior Property Hub.
   verificationStatus String   @default("NONE") // NONE | REQUESTED | VERIFIED | REJECTED
   availability       String   @default("AVAILABLE") // AVAILABLE | RESERVED | SOLD
   featured           Boolean  @default(false)

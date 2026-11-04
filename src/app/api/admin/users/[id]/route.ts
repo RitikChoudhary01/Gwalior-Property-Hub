@@ -54,10 +54,10 @@ function toAdminUserDTO(u: UserRow, projectCount: number) {
 }
 
 const NOTIFICATIONS = {
-  verify: { title: "Account verified", message: "Your account was verified by Vasati." },
-  unverify: { title: "Verification revoked", message: "Your account verification was revoked by Vasati." },
-  activate: { title: "Account activated", message: "Your account was activated by Vasati." },
-  deactivate: { title: "Account deactivated", message: "Your account was deactivated by Vasati. Contact support if you believe this is a mistake." },
+  verify: { title: "Account verified", message: "Your account was verified by Gwalior Property Hub." },
+  unverify: { title: "Verification revoked", message: "Your account verification was revoked by Gwalior Property Hub." },
+  activate: { title: "Account activated", message: "Your account was activated by Gwalior Property Hub." },
+  deactivate: { title: "Account deactivated", message: "Your account was deactivated by Gwalior Property Hub. Contact support if you believe this is a mistake." },
 } as const;
 
 export async function PATCH(req: Request, { params }: Params) {

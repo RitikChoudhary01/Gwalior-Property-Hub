@@ -47,7 +47,7 @@ const GUEST_BENEFITS = [
   {
     icon: ClipboardCheck,
     title: "Free listing",
-    text: "Publishing your property on Vasati is free during early access. You pay nothing to list.",
+    text: "Publishing your property on Gwalior Property Hub is free during early access. You pay nothing to list.",
   },
   {
     icon: LineChart,
@@ -82,7 +82,7 @@ const STEPS = [
 const FAQS = [
   {
     q: "Does listing cost anything?",
-    a: "No. Listing on Vasati is free during early access. We earn an agreed commission — a percentage of the sale value or a fixed fee, as defined in a written agreement signed with you — only on successful transactions attributed to the platform. If your sale does not come from Vasati, you owe us nothing.",
+    a: "No. Listing on Gwalior Property Hub is free during early access. We earn an agreed commission — a percentage of the sale value or a fixed fee, as defined in a written agreement signed with you — only on successful transactions attributed to the platform. If your sale does not come from Gwalior Property Hub, you owe us nothing.",
   },
   {
     q: "What documents do I need?",
@@ -90,10 +90,10 @@ const FAQS = [
   },
   {
     q: "How does verification work?",
-    a: "A Vasati team member reviews each listing before publication — checking photographs, pricing plausibility and completeness of details. Owners and builders who complete identity or RERA verification receive a Verified badge on their listings, which buyers can see.",
+    a: "A Gwalior Property Hub team member reviews each listing before publication — checking photographs, pricing plausibility and completeness of details. Owners and builders who complete identity or RERA verification receive a Verified badge on their listings, which buyers can see.",
   },
   {
-    q: "Can builders list on Vasati too?",
+    q: "Can builders list on Gwalior Property Hub too?",
     a: "Yes. Builders and developers can create a builder account, publish dedicated project pages with inventory and pricing, and receive attributed enquiries. Visit the partner page to learn how the builder programme works.",
   },
 ];
@@ -126,9 +126,9 @@ export function ListPropertyView() {
       {/* ============ Hero ============ */}
       <section className="bg-accent/60">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Sell with Vasati</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Sell with Gwalior Property Hub</p>
           <h1 className="mt-3 max-w-3xl font-display text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
-            List Your Property on Vasati
+            List Your Property on Gwalior Property Hub
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
             Reach genuine, verified buyers with a listing that presents your home at its best — clear

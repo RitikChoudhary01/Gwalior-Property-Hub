@@ -209,7 +209,7 @@ export function BuilderDashboard({ initialTab }: { initialTab?: string }) {
 
         <div className="min-w-0 flex-1">
           {/* Mobile tab bar */}
-          <div className="mb-6 flex gap-2 overflow-x-auto vasati-scroll pb-1 lg:hidden">
+          <div className="mb-6 flex gap-2 overflow-x-auto gph-scroll pb-1 lg:hidden">
             {BUILDER_TABS.map((t) => {
               const active = tab === t.id;
               return (
@@ -439,7 +439,7 @@ function BuilderProjectsTab({
         <EmptyState
           icon={<Building2 className="size-6" aria-hidden="true" />}
           title="No projects yet"
-          description="Create your first project to start listing units on the Vasati marketplace."
+          description="Create your first project to start listing units on the Gwalior Property Hub marketplace."
           action={
             <Button onClick={onCreate}>
               <Plus className="size-4" aria-hidden="true" />
@@ -626,7 +626,7 @@ function BuilderInventoryTab() {
           </div>
         ) : (
           <>
-            <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+            <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -954,7 +954,7 @@ function UnitForm({
           </div>
         ) : (
           <>
-            <div className="vasati-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div className="gph-scroll flex-1 space-y-6 overflow-y-auto px-6 py-5">
               <div className="grid gap-2">
                 <Label htmlFor="unit-project">Project</Label>
                 <Select value={values.projectId} onValueChange={onProjectChange}>
@@ -1314,7 +1314,7 @@ function BuilderEnquiriesTab() {
           </div>
         ) : (
           <>
-            <div className="max-h-[70vh] overflow-y-auto vasati-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
+            <div className="max-h-[70vh] overflow-y-auto gph-scroll [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1509,7 +1509,7 @@ function BuilderProfileTab() {
           <Alert>
             <Info className="size-4" aria-hidden="true" />
             <AlertDescription>
-              Company details are managed by the Vasati team. Contact support at{" "}
+              Company details are managed by the Gwalior Property Hub team. Contact support at{" "}
               <a href={`mailto:${BRAND.supportEmail}`} className="font-medium text-primary hover:underline">
                 {BRAND.supportEmail}
               </a>{" "}

@@ -59,7 +59,7 @@ export function AdminDashboard({ initialTab }: { initialTab?: string }) {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-            Vasati administration
+            Gwalior Property Hub administration
           </p>
           <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Command Centre
@@ -114,7 +114,7 @@ export function AdminDashboard({ initialTab }: { initialTab?: string }) {
 
         <div className="min-w-0 flex-1">
           {/* Mobile tab bar */}
-          <div className="mb-6 flex gap-2 overflow-x-auto vasati-scroll pb-1 lg:hidden">
+          <div className="mb-6 flex gap-2 overflow-x-auto gph-scroll pb-1 lg:hidden">
             {ADMIN_TABS.map((t) => {
               const active = tab === t.id;
               return (

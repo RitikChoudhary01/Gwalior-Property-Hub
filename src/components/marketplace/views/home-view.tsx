@@ -214,7 +214,7 @@ export function HomeView() {
             <SectionHeading
               eyebrow="Live market data"
               title="Local market pulse"
-              description="Average prices per sq.ft. across our most active localities — computed live from Vasati's verified inventory, not stale reports."
+              description="Average prices per sq.ft. across our most active localities — computed live from Gwalior Property Hub's verified inventory, not stale reports."
             />
           </motion.div>
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -282,7 +282,7 @@ export function HomeView() {
             <SectionHeading
               eyebrow="Fresh on the market"
               title="Recently added"
-              description="The newest listings on Vasati, ready for your shortlist."
+              description="The newest listings on Gwalior Property Hub, ready for your shortlist."
               linkText="Browse all listings"
               linkHref="#/properties"
             />
@@ -349,7 +349,7 @@ export function HomeView() {
         <motion.div {...fadeUp}>
           <SectionHeading
             eyebrow="Simple by design"
-            title="How Vasati works"
+            title="How Gwalior Property Hub works"
             description="A guided path from first search to final signature, for every side of the transaction."
           />
         </motion.div>
@@ -550,7 +550,7 @@ export function HomeView() {
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">For developers</p>
             <h2 id="builder-cta" className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-              Partner with Vasati as a Builder
+              Partner with Gwalior Property Hub as a Builder
             </h2>
             <p className="mt-2.5 text-sm leading-relaxed text-foreground/75 sm:text-[15px]">
               Publish your projects and inventory to a curated audience of serious home buyers, with

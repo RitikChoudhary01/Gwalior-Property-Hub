@@ -1,5 +1,5 @@
 /**
- * Vasati — database seed
+ * Gwalior Property Hub — database seed
  * Run with: bun run db:seed
  *
  * Seeds demo accounts, properties, projects, leads, visits,
@@ -1358,12 +1358,12 @@ async function main() {
       email: "ramesh.g@example.in",
       phone: "+91 98730 10001",
       subject: "Listing my property",
-      message: "I own a 3 BHK in Sector 82, Gurugram and would like to list it on Vasati.",
+      message: "I own a 3 BHK in Sector 82, Gurugram and would like to list it on Gwalior Property Hub.",
     },
   });
   await db.setting.createMany({
     data: [
-      { key: "site.supportEmail", value: "support@vasati.in" },
+      { key: "site.supportEmail", value: "support@gwaliorpropertyhub.in" },
       { key: "site.supportPhone", value: "+91 80 4718 2200" },
       { key: "commission.defaultRate", value: "1.0" },
       { key: "listings.autoPublish", value: "false" },

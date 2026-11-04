@@ -118,7 +118,7 @@ export function Footer() {
               <li className="flex items-start gap-2.5">
                 <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <span>
-                  Vasati Realty Pvt. Ltd.
+                  Gwalior Property Hub Pvt. Ltd.
                   <br />
                   Bengaluru, Karnataka 560001
                 </span>
@@ -129,7 +129,7 @@ export function Footer() {
 
         <div className="mt-12 border-t border-background/15 pt-6">
           <div className="flex flex-col items-center justify-between gap-3 text-xs text-background/55 sm:flex-row">
-            <p>© {new Date().getFullYear()} Vasati Realty Pvt. Ltd. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Gwalior Property Hub Pvt. Ltd. All rights reserved.</p>
             <div className="flex items-center gap-5">
               <a
                 href="#/privacy"
@@ -154,7 +154,7 @@ export function Footer() {
             </div>
           </div>
           <p className="mt-4 text-center text-[11px] leading-relaxed text-background/40 sm:text-left">
-            Vasati is a real estate marketplace platform. Properties are listed by owners and
+            Gwalior Property Hub is a real estate marketplace platform. Properties are listed by owners and
             builders; buyers are advised to independently verify property documents, title and
             applicable RERA registration details before making any purchase decision.
           </p>

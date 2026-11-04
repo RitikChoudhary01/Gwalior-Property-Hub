@@ -40,7 +40,7 @@ function labelFor(status: string): string {
   for (const s of TRANSACTION_STATUSES) if (s.value === status) return s.label;
   for (const s of REQUIREMENT_STATUSES) if (s.value === status) return s.label;
   if (status === "PAYMENT_PENDING") return "Payment Pending";
-  if (status === "VERIFIED") return "Vasati Verified";
+  if (status === "VERIFIED") return "GPH Verified";
   if (status === "REQUESTED") return "Verification Requested";
   if (status === "NONE") return "Not verified";
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -85,7 +85,7 @@ export function VerifiedBadge({ verified, label = "Verified" }: { verified: bool
 }
 
 /**
- * Listing-level legal verification badge. Shown ONLY when Vasati has
+ * Listing-level legal verification badge. Shown ONLY when Gwalior Property Hub has
  * actually completed document verification for this specific listing
  * (Property.verificationStatus === "VERIFIED"). Identity / RERA checks
  * on the seller do NOT qualify — those use VerifiedBadge with an
@@ -98,10 +98,10 @@ export function ListingVerifiedBadge({ className }: { className?: string }) {
         "gap-1 border border-emerald-300 bg-white/90 text-emerald-800 shadow-sm hover:bg-white/90",
         className
       )}
-      title="Ownership documents reviewed by Vasati"
+      title="Ownership documents reviewed by Gwalior Property Hub"
     >
       <ShieldCheck className="size-3.5 text-emerald-600" aria-hidden="true" />
-      Vasati Verified
+      GPH Verified
     </Badge>
   );
 }
