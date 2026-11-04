@@ -40,10 +40,14 @@ const DRY = args.includes("--dry");
 const sqliteArg = args.find((a) => a.startsWith("--sqlite="));
 const SQLITE_PATH = sqliteArg ? sqliteArg.split("=").slice(1).join("=") : "db/custom.db";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? "";
+// Prefer DIRECT_URL (session-mode pooler, :5432) for this script: it wraps
+// all inserts in ONE transaction, which PgBouncer's transaction mode
+// (DATABASE_URL, :6543) is not designed to carry reliably. Falls back to
+// DATABASE_URL when DIRECT_URL is absent (e.g. direct connections).
+const DATABASE_URL = process.env.DIRECT_URL || process.env.DATABASE_URL || "";
 if (!DRY && !DATABASE_URL.startsWith("postgres")) {
   console.error(
-    "✗ DATABASE_URL must be a Postgres connection string.\n" +
+    "✗ DIRECT_URL / DATABASE_URL must be a Postgres connection string.\n" +
       "  Find it: Supabase → Project Settings → Database → Connection string (URI).\n" +
       "  Tip: run `bun scripts/migrate-data.mjs --dry` to preview without a database."
   );

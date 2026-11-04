@@ -147,17 +147,20 @@ create policy "admins manage commissions" on "Commission"
 
 The switch **never loses data**. What `bun scripts/use-supabase.mjs` does:
 
-1. Flips the Prisma provider to PostgreSQL (24 identical models).
-2. `prisma db push` — creates every table on Supabase.
-3. `scripts/migrate-data.mjs` — copies **every existing row** from `db/custom.db` into Supabase using `INSERT … ON CONFLICT ("id") DO NOTHING`, inside a single transaction. Nothing is ever deleted or overwritten — on either side. The SQLite file itself is opened read-only and remains in the repo, so the demo data is always present in the downloaded project.
+1. Flips the Prisma provider to PostgreSQL (24 identical models) with the official **dual-pooler datasource**: `url = DATABASE_URL` (transaction pooler, `:6543`, `?pgbouncer=true`) for runtime queries and `directUrl = DIRECT_URL` (session pooler, `:5432`) for `db push` / migrations. `DIRECT_URL` is **auto-derived** from `DATABASE_URL` (port swap + pgbouncer param stripped) when not set.
+2. `prisma db push` via `DIRECT_URL` — creates every table on Supabase.
+3. `scripts/migrate-data.mjs` — connects via `DIRECT_URL` (its single big transaction is exactly what session mode is for) and copies **every existing row** from `db/custom.db` into Supabase using `INSERT … ON CONFLICT ("id") DO NOTHING`. Nothing is ever deleted or overwritten — on either side. The SQLite file itself is opened read-only and remains in the repo, so the demo data is always present in the downloaded project.
 
 Step-by-step:
 
 ```bash
 # 1. Create a project at https://supabase.com (free tier works)
-# 2. Copy three values into .env (see .env.example):
+# 2. Copy the values into .env (see .env.example):
 #      Project Settings → API       → SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-#      Project Settings → Database  → DATABASE_URL (connection string, URI form)
+#      Project Settings → Database  → DATABASE_URL  (transaction pooler URI, :6543)
+#                                     DIRECT_URL    (session pooler URI, :5432 —
+#                                     optional, auto-derived when omitted)
+#      Replace [YOUR-PASSWORD] with the database password.
 # 3. Run the switch:
 bun scripts/use-supabase.mjs
 # 4. Preview without touching anything: bun scripts/migrate-data.mjs --dry
