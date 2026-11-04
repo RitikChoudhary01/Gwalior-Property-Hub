@@ -16,7 +16,7 @@ A full-stack property marketplace connecting buyers, property owners (sellers), 
 | Charts | Recharts | Admin analytics from live data |
 | Notifications | In-app (persisted) + email/WhatsApp adapters | Modular channel service, graceful fallback when unconfigured |
 
-**Note on Supabase:** the schema in `prisma/schema.prisma` is written to be PostgreSQL-portable. To deploy on Supabase, change the datasource provider to `postgresql`, set `DATABASE_URL` to the Supabase connection string, and run `prisma db push` (or `prisma migrate dev` to generate SQL migrations). Section 5 includes the row-level-security policy set for direct Postgres usage.
+**Note on Supabase:** the schema in `prisma/schema.prisma` is written to be PostgreSQL-portable. The one-command switch is `bun scripts/use-supabase.mjs` — it flips the provider to `postgresql`, pushes the 24-table schema to your Supabase project, and **carries over every existing row from `db/custom.db`** (see §8). `db/supabase/migration.sql` contains the equivalent DDL as a manual fallback. Section 5 includes the row-level-security policy set for direct Postgres usage.
 
 ## 2. Local Development
 
@@ -88,41 +88,44 @@ Additional protections: scrypt password hashing, httpOnly SameSite cookies, per-
 ### Supabase RLS policies (when deploying to Postgres)
 
 ```sql
--- enable RLS
-alter table properties enable row level security;
-alter table leads enable row level security;
-alter table transactions enable row level security;
-alter table commissions enable row level security;
+-- enable RLS on the sensitive tables (identifiers are quoted camelCase,
+-- exactly as created by db/supabase/migration.sql)
+alter table "Property" enable row level security;
+alter table "Lead" enable row level security;
+alter table "Transaction" enable row level security;
+alter table "Commission" enable row level security;
 
--- public read: only approved, published properties
-create policy "public read published properties" on properties
-  for select using (status = 'PUBLISHED');
+-- public read: only approved, published listings
+create policy "public read published properties" on "Property"
+  for select using ("status" = 'PUBLISHED');
 
--- sellers manage only their own listings (auth.uid() = seller_id)
-create policy "sellers manage own listings" on properties
-  for all using (auth.uid() = seller_id) with check (auth.uid() = seller_id);
+-- sellers manage only their own listings
+create policy "sellers manage own listings" on "Property"
+  for all using ("sellerId" = auth.uid()::text) with check ("sellerId" = auth.uid()::text);
 
 -- buyers see their own enquiries
-create policy "buyers read own leads" on leads
-  for select using (auth.uid() = buyer_id);
+create policy "buyers read own leads" on "Lead"
+  for select using ("buyerId" = auth.uid()::text);
 
 -- listing owners see leads on their properties
-create policy "owners read own listing leads" on leads
+create policy "owners read own listing leads" on "Lead"
   for select using (
-    exists (select 1 from properties p where p.id = leads.property_id and p.seller_id = auth.uid())
+    exists (select 1 from "Property" p where p."id" = "Lead"."propertyId" and p."sellerId" = auth.uid()::text)
   );
 
--- financial tables: admin-only (use is_admin() helper checking profiles.role = 'ADMIN')
+-- financial tables: admin-only (checks the app's own "User" table)
 create function is_admin() returns boolean
-  language sql stable as $$ select exists (select 1 from profiles where id = auth.uid() and role = 'ADMIN') $$;
+  language sql stable as $$
+  select exists (select 1 from "User" where "id" = auth.uid()::text and "role" = 'ADMIN')
+  $$;
 
-create policy "admins manage transactions" on transactions
+create policy "admins manage transactions" on "Transaction"
   for all using (is_admin()) with check (is_admin());
-create policy "admins manage commissions" on commissions
+create policy "admins manage commissions" on "Commission"
   for all using (is_admin()) with check (is_admin());
 ```
 
-(Extend the same pattern to the remaining tables: favourites, site_visits, notifications, projects, agreements. Service-role keys must remain server-side only.)
+(Extend the same pattern to the remaining tables: "Favourite", "SiteVisit", "Notification", "Project", agreements. The application itself connects with the service-role key from the server only and enforces authorization in the API routes — RLS is defence-in-depth for direct Postgres access.)
 
 ## 6. Revenue Workflow (commission integrity)
 
@@ -140,11 +143,74 @@ create policy "admins manage commissions" on commissions
 
 ## 8. Production Deployment
 
-1. **Database:** create a Supabase project → set `DATABASE_URL` → switch the Prisma provider to `postgresql` → `bunx prisma db push` (or migrate) → apply the RLS policies from section 5.
-2. **Storage:** the upload endpoint writes to `public/uploads`; on Supabase, point it at Supabase Storage buckets (property images / documents) using the service-role key server-side.
-3. **Build & run:** `bun run build && bun run start` (or deploy to Vercel — set the env vars in the dashboard).
-4. **Secrets:** keep `DATABASE_URL`, provider keys out of the repo; rotate the `ADMIN` account password immediately.
-5. **Legal (India):** configure your company details in `src/lib/constants.ts` (BRAND), have counsel review `/terms` and `/privacy` copy, and ensure listing rules comply with RERA advertising requirements before go-live.
+### 8a. Supabase project + data preservation (the one-command switch)
+
+The switch **never loses data**. What `bun scripts/use-supabase.mjs` does:
+
+1. Flips the Prisma provider to PostgreSQL (24 identical models).
+2. `prisma db push` — creates every table on Supabase.
+3. `scripts/migrate-data.mjs` — copies **every existing row** from `db/custom.db` into Supabase using `INSERT … ON CONFLICT ("id") DO NOTHING`, inside a single transaction. Nothing is ever deleted or overwritten — on either side. The SQLite file itself is opened read-only and remains in the repo, so the demo data is always present in the downloaded project.
+
+Step-by-step:
+
+```bash
+# 1. Create a project at https://supabase.com (free tier works)
+# 2. Copy three values into .env (see .env.example):
+#      Project Settings → API       → SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#      Project Settings → Database  → DATABASE_URL (connection string, URI form)
+# 3. Run the switch:
+bun scripts/use-supabase.mjs
+# 4. Preview without touching anything: bun scripts/migrate-data.mjs --dry
+```
+
+Seeding is opt-in (`--seed`) because the seed script resets the database first — by default your existing data is migrated instead. Re-running the switch is safe: rows already present in Postgres are skipped (`ON CONFLICT DO NOTHING`).
+
+### 8b. VPS deployment (proper server setup)
+
+```bash
+# on the server (Ubuntu 22.04+, Node 20+ or Bun 1.1+):
+git clone <your-repo> vasati && cd vasati
+cp .env.example .env      # fill in Supabase values
+bun install
+bun scripts/use-supabase.mjs   # schema + data → Supabase (first time only)
+bun run build                   # next build → .next/standalone
+bun run start                   # serves on :3000 (NODE_ENV=production)
+```
+
+Put a TLS reverse proxy in front (Caddy shown — two lines, automatic HTTPS):
+
+```
+vasati.example.com {
+  reverse_proxy 127.0.0.1:3000
+}
+```
+
+Keep it alive with systemd:
+
+```ini
+# /etc/systemd/system/vasati.service
+[Unit]
+Description=Vasati
+After=network.target
+[Service]
+WorkingDirectory=/opt/vasati
+ExecStart=/usr/bin/bun run start
+Restart=always
+Environment=NODE_ENV=production
+[Install]
+WantedBy=multi-user.target
+```
+
+### 8c. Vercel option
+
+`vercel deploy` with the same env vars set in the dashboard (DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY). Run `bun scripts/use-supabase.mjs` once from your machine to prepare the database — Vercel only needs the env vars.
+
+### 8d. Storage, secrets & backups
+
+1. **Storage:** with `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set, `/api/upload` automatically writes listing images to a Supabase Storage bucket (public, name `uploads`, overridable via `SUPABASE_BUCKET`).
+2. **Secrets:** keep `DATABASE_URL` and service-role keys out of the repo (`.env` is git-ignored); rotate the `ADMIN` account password immediately after first login.
+3. **Backups:** nightly `pg_dump` on the Supabase database, e.g. cron: `0 2 * * * pg_dump "$DATABASE_URL" -Fc -f /var/backups/vasati-$(date +\%F).dump`. Your original `db/custom.db` stays in the repo as the demo-data snapshot.
+4. **Legal (India):** configure company details in `src/lib/constants.ts` (BRAND), have counsel review `/terms` and `/privacy` copy, and ensure listing rules comply with RERA advertising requirements before go-live.
 
 ## 9. Scripts
 
@@ -153,7 +219,9 @@ create policy "admins manage commissions" on commissions
 | `bun run dev` | Dev server (port 3000) |
 | `bun run lint` | ESLint (Next core-web-vitals) |
 | `bun run db:push` | Sync schema to database |
-| `bun run db:seed` | Reset + seed demo data |
+| `bun run db:seed` | Reset + seed demo data (destructive — wipes existing rows) |
+| `scripts/use-supabase.mjs` | One-command switch to Supabase: schema push + full data carry-over |
+| `scripts/migrate-data.mjs` | Copy every row from `db/custom.db` into Postgres (`--dry` to preview) |
 | `scripts/gen-images.sh` | Regenerate the property photography set via image-generation CLI |
 
 ## 10. Verified End-to-End (browser-tested)

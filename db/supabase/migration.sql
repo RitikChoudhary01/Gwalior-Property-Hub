@@ -122,6 +122,7 @@ CREATE TABLE "Property" (
     "projectId" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "rejectionReason" TEXT,
+    "verificationStatus" TEXT NOT NULL DEFAULT 'NONE',
     "availability" TEXT NOT NULL DEFAULT 'AVAILABLE',
     "featured" BOOLEAN NOT NULL DEFAULT false,
     "views" INTEGER NOT NULL DEFAULT 0,
@@ -176,6 +177,31 @@ CREATE TABLE "Favourite" (
 );
 
 -- CreateTable
+CREATE TABLE "Requirement" (
+    "id" TEXT NOT NULL,
+    "reference" TEXT NOT NULL,
+    "buyerId" TEXT,
+    "name" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "email" TEXT,
+    "purpose" TEXT NOT NULL DEFAULT 'BUY',
+    "city" TEXT NOT NULL,
+    "localities" TEXT,
+    "propertyType" TEXT NOT NULL DEFAULT 'Any',
+    "bhk" INTEGER,
+    "budgetMin" INTEGER,
+    "budgetMax" INTEGER,
+    "notes" TEXT,
+    "source" TEXT NOT NULL DEFAULT 'Website',
+    "status" TEXT NOT NULL DEFAULT 'NEW',
+    "assignedToId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Requirement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Lead" (
     "id" TEXT NOT NULL,
     "reference" TEXT NOT NULL,
@@ -220,6 +246,7 @@ CREATE TABLE "SiteVisit" (
     "preferredTime" TEXT NOT NULL,
     "contactName" TEXT NOT NULL,
     "contactPhone" TEXT NOT NULL,
+    "assignedToId" TEXT,
     "status" TEXT NOT NULL DEFAULT 'REQUESTED',
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -438,6 +465,18 @@ CREATE UNIQUE INDEX "PropertyAmenity_propertyId_name_key" ON "PropertyAmenity"("
 CREATE UNIQUE INDEX "Favourite_userId_propertyId_key" ON "Favourite"("userId", "propertyId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Requirement_reference_key" ON "Requirement"("reference");
+
+-- CreateIndex
+CREATE INDEX "Requirement_status_idx" ON "Requirement"("status");
+
+-- CreateIndex
+CREATE INDEX "Requirement_assignedToId_idx" ON "Requirement"("assignedToId");
+
+-- CreateIndex
+CREATE INDEX "Requirement_city_createdAt_idx" ON "Requirement"("city", "createdAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Lead_reference_key" ON "Lead"("reference");
 
 -- CreateIndex
@@ -466,6 +505,9 @@ CREATE INDEX "SiteVisit_buyerId_idx" ON "SiteVisit"("buyerId");
 
 -- CreateIndex
 CREATE INDEX "SiteVisit_status_idx" ON "SiteVisit"("status");
+
+-- CreateIndex
+CREATE INDEX "SiteVisit_assignedToId_idx" ON "SiteVisit"("assignedToId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SellerAgreement_reference_key" ON "SellerAgreement"("reference");
@@ -576,6 +618,9 @@ ALTER TABLE "SiteVisit" ADD CONSTRAINT "SiteVisit_buyerId_fkey" FOREIGN KEY ("bu
 ALTER TABLE "SiteVisit" ADD CONSTRAINT "SiteVisit_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "SiteVisit" ADD CONSTRAINT "SiteVisit_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "SellerAgreement" ADD CONSTRAINT "SellerAgreement_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -613,4 +658,10 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Requirement" ADD CONSTRAINT "Requirement_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Requirement" ADD CONSTRAINT "Requirement_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
