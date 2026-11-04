@@ -15,7 +15,7 @@ import {
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bell, ChevronDown, LayoutDashboard, LogOut, Menu, Plus, User, Home, Building2, Info, Mail } from "lucide-react";
+import { ArrowLeft, Bell, ChevronDown, LayoutDashboard, LogOut, Menu, Plus, User, Home, Building2, Info, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import { initials, formatRelative } from "@/lib/format";
@@ -56,16 +56,34 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <a
-          href="#/"
-          aria-label="Gwalior Property Hub — home"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate("/");
-          }}
-        >
-          <Logo />
-        </a>
+        <div className="flex items-center gap-2">
+          {route.path !== "/" && (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined" && window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  navigate("/");
+                }
+              }}
+              className="grid size-9 place-items-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-2xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 lg:hidden"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="size-4.5" aria-hidden="true" />
+            </button>
+          )}
+          <a
+            href="#/"
+            aria-label="Gwalior Property Hub — home"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/");
+            }}
+          >
+            <Logo />
+          </a>
+        </div>
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">

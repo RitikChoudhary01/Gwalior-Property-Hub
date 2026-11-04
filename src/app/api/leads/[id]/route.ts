@@ -107,23 +107,29 @@ export async function PATCH(req: Request, { params }: Params) {
     const isAdmin = user.role === "ADMIN";
     const isOwner = lead.property.sellerId === user.id || (user.builderProfile && lead.property.builderId === user.builderProfile.id);
     const isAssignedTeam = user.role === "TEAM" && lead.assignedToId === user.id;
-    if (!isAdmin && !isOwner && !isAssignedTeam) return fail("Not allowed.", 403);
+    const isBuyer = lead.buyerId === user.id;
+    if (!isAdmin && !isOwner && !isAssignedTeam && !isBuyer) return fail("Not allowed.", 403);
 
     const body = await parseBody(req, patchSchema);
     const data: Record<string, unknown> = {};
     const activityCreates: { type: string; note: string; userId: string | null }[] = [];
 
     if (body.status) {
+      if (isBuyer && body.status !== "LOST") {
+        return fail("Buyers can only close their enquiries as Not Interested / Closed.", 403);
+      }
       const ownerAllowed = (OWNER_ALLOWED_STATUSES as readonly string[]).includes(body.status);
       const teamAllowed = true; // team members manage operational lead statuses on their assigned leads
-      if (!isAdmin && !ownerAllowed && !(isAssignedTeam && teamAllowed)) {
+      if (!isAdmin && !isBuyer && !ownerAllowed && !(isAssignedTeam && teamAllowed)) {
         return fail("Listing owners can only mark leads as Contacted or Lost.", 403);
       }
       if (body.status !== lead.status) {
         data.status = body.status;
         activityCreates.push({
           type: "STATUS_CHANGE",
-          note: `Status changed from ${lead.status.replace(/_/g, " ")} to ${body.status.replace(/_/g, " ")}.`,
+          note: isBuyer
+            ? "Buyer closed this enquiry (marked not interested)."
+            : `Status changed from ${lead.status.replace(/_/g, " ")} to ${body.status.replace(/_/g, " ")}.`,
           userId: user.id,
         });
       }

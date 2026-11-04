@@ -4,7 +4,7 @@ import { getSessionUser, requireUser } from "@/lib/auth";
 import { ok, fail, handle, parseBody } from "@/lib/api-helpers";
 import { audit } from "@/lib/audit";
 import { projectDetailInclude, projectToDetail } from "@/lib/serializers";
-import { notify } from "@/lib/notifications";
+import { notify, notifyAdmins } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +89,12 @@ export async function PATCH(req: Request, { params }: Params) {
       data.status = "PENDING";
     }
 
+    // Auto-resubmit rejected projects when edited by builder
+    if (project.status === "REJECTED" && !isAdmin) {
+      data.status = "PENDING";
+      data.rejectionReason = null;
+    }
+
     await db.$transaction(async (tx) => {
       if (body.images) {
         await tx.projectImage.deleteMany({ where: { projectId: project.id } });
@@ -118,6 +124,26 @@ export async function PATCH(req: Request, { params }: Params) {
           link: `#/projects/${project.slug}`,
         });
       }
+    } else if (body.status === "REJECTED" && isAdmin && project.status !== "REJECTED") {
+      await audit(user.id, "PROJECT_REJECTED", "PROJECT", project.id, body.rejectionReason ?? "Rejected by admin");
+      const builder = await db.builder.findUnique({ where: { id: project.builderId } });
+      if (builder) {
+        await notify({
+          userId: builder.userId,
+          title: "Project changes requested",
+          message: `Your project "${project.name}" requires adjustments: ${body.rejectionReason ?? "Please review details and resubmit."}`,
+          type: "LISTING",
+          link: "#/dashboard?tab=projects",
+        });
+      }
+    } else if (project.status === "REJECTED" && data.status === "PENDING") {
+      await audit(user.id, "PROJECT_RESUBMITTED", "PROJECT", project.id, `Builder resubmitted "${project.name}" for moderation`);
+      await notifyAdmins({
+        title: `Project Resubmitted: ${project.name}`,
+        message: `Builder resubmitted "${project.name}" after addressing feedback.`,
+        type: "SYSTEM",
+        link: "#/dashboard?tab=moderation",
+      });
     }
 
     const updated = await findProject(project.id);

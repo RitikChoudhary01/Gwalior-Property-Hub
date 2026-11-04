@@ -1,5 +1,8 @@
 // Gwalior Property Hub — Indian Real Estate Marketplace
-// Prisma schema (PostgreSQL-portable design, running on SQLite in this environment)
+// Prisma schema (PostgreSQL variant — 1:1 mirror of the SQLite schema in
+// prisma/schema.prisma; ONLY the datasource provider differs).
+// This file is the Supabase/production template: scripts/use-supabase.mjs
+// copies it over prisma/schema.prisma when switching the stack to Supabase.
 // Roles: BUYER | SELLER | BUILDER | TEAM | ADMIN  (string constants — see src/lib/constants.ts)
 
 generator client {
@@ -7,8 +10,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // transaction-mode pooler (:6543, pgbouncer) — runtime queries
+  directUrl = env("DIRECT_URL")     // session-mode pooler (:5432) — db push / migrations
 }
 
 // ============================================================
@@ -38,8 +42,8 @@ model User {
   requirements       Requirement[]     @relation("BuyerRequirements")
   assignedRequirements Requirement[]   @relation("AssignedRequirements")
   leadActivities    LeadActivity[]
-  siteVisits        SiteVisit[]       @relation("BuyerVisits")
-  assignedVisits    SiteVisit[]       @relation("AssignedVisits")
+  siteVisits        SiteVisit[]        @relation("BuyerVisits")
+  assignedVisits    SiteVisit[]        @relation("AssignedVisits")
   sellerAgreements  SellerAgreement[]
   transactions      Transaction[]     @relation("BuyerTransactions")
   notifications     Notification[]
@@ -141,7 +145,7 @@ model Property {
   price              Int // in INR
   negotiable         Boolean  @default(false)
   city               String
-  state              String
+  state               String
   locality           String
   address            String
   latitude           Float?

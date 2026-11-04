@@ -137,7 +137,11 @@ export async function PATCH(req: Request, { params }: Params) {
     if (body.availability) {
       if (!isOwner && !isAdmin) return fail("Not allowed.", 403);
       data.availability = body.availability;
-      if (body.availability === "SOLD") data.status = "SOLD";
+      if (body.availability === "SOLD") {
+        data.status = "SOLD";
+      } else if (property.status === "SOLD") {
+        data.status = "PUBLISHED";
+      }
     }
 
     if (typeof body.featured === "boolean") {
@@ -186,6 +190,16 @@ export async function PATCH(req: Request, { params }: Params) {
         });
       }
     });
+
+    if (data.status === "PENDING" && !isAdmin) {
+      await audit(user.id, "LISTING_RESUBMITTED", "PROPERTY", property.id, `"${property.title}"`);
+      await notifyAdmins({
+        title: "Listing submitted for review",
+        message: `"${property.title}" was updated and resubmitted by ${user.name}.`,
+        type: "LISTING",
+        link: "#/dashboard?tab=moderation",
+      });
+    }
 
     if (body.status === "PUBLISHED" && isAdmin && property.status !== "PUBLISHED") {
       await audit(user.id, "LISTING_APPROVED", "PROPERTY", property.id, `"${property.title}"`);

@@ -7,23 +7,16 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, LogIn, Mail, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppStore } from "@/store/use-app-store";
 import { api, ApiError } from "@/lib/api-client";
-import { BRAND, ROLE_LABELS } from "@/lib/constants";
+import { BRAND } from "@/lib/constants";
 import type { AuthUser } from "@/lib/types";
 import { Logo } from "../shared/logo";
-
-const DEMO_ACCOUNTS = [
-  { email: "admin@vasati.in", password: "Admin@123", label: "Admin", role: "ADMIN" },
-  { email: "buyer@vasati.in", password: "Buyer@123", label: "Buyer", role: "BUYER" },
-  { email: "seller@vasati.in", password: "Seller@123", label: "Seller", role: "SELLER" },
-  { email: "builder@vasati.in", password: "Builder@123", label: "Builder", role: "BUILDER" },
-];
 
 export function LoginView() {
   const navigate = useAppStore((s) => s.navigate);
@@ -37,9 +30,15 @@ export function LoginView() {
 
   async function finishSignIn(user: AuthUser) {
     useAppStore.getState().setUser(user);
-    useAppStore.getState().loadNotifications();
-    useAppStore.getState().loadFavourites();
-    toast.success("Signed in", { description: `Welcome back, ${user.name.split(" ")[0]}.` });
+    // Non-blocking background loads so network hiccups never fail the login UI
+    try {
+      useAppStore.getState().loadNotifications();
+      useAppStore.getState().loadFavourites();
+    } catch (e) {
+      console.warn("Non-critical post-signin error:", e);
+    }
+    const firstName = user?.name ? user.name.split(" ")[0] : "User";
+    toast.success("Signed in", { description: `Welcome back, ${firstName}.` });
     const next = route.query.get("next");
     navigate(next && next.startsWith("/") ? next : "/dashboard");
   }
@@ -55,35 +54,56 @@ export function LoginView() {
     }
 
     setSubmitting(true);
+    let user: AuthUser | null = null;
     try {
-      const user = await api<AuthUser>("/api/auth/login", {
+      user = await api<AuthUser>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: email.trim(), password }),
       });
-      await finishSignIn(user);
     } catch (err) {
+      console.error("[Login failed]", err);
       if (err instanceof ApiError && err.status === 401) {
         setError("Invalid email or password.");
+      } else if (err instanceof ApiError && err.message) {
+        setError(err.message);
       } else {
-        setError(
-          err instanceof ApiError && err.message
-            ? err.message
-            : "Could not sign you in. Please try again."
-        );
+        setError("Could not sign you in. Please check your connection and try again.");
       }
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      if (user) await finishSignIn(user);
+    } catch (err) {
+      console.error("[Post-login error]", err);
+      // Fallback navigation in case of unexpected state errors
+      navigate("/dashboard");
     } finally {
       setSubmitting(false);
     }
   }
 
-  function fillDemo(account: (typeof DEMO_ACCOUNTS)[number]) {
-    setEmail(account.email);
-    setPassword(account.password);
-    setError(null);
-  }
-
   return (
-    <div className="mx-auto flex max-w-md flex-col px-4 py-12 pb-16 sm:px-6 sm:py-16">
+    <div className="mx-auto flex max-w-md flex-col px-4 py-10 pb-16 sm:px-6 sm:py-14">
+      <div className="mb-4 flex items-center justify-start">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              window.history.back();
+            } else {
+              navigate("/");
+            }
+          }}
+          className="group inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95"
+          aria-label="Back"
+        >
+          <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
+          <span>Back</span>
+        </button>
+      </div>
+
       <div className="flex justify-center">
         <Logo />
       </div>
@@ -179,38 +199,6 @@ export function LoginView() {
             Create an account
           </button>
         </p>
-      </div>
-
-      {/* Demo access */}
-      <div className="mt-6 rounded-xl border border-dashed bg-card/60 p-5">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
-          Demo access
-        </p>
-        <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          Explore every side of the marketplace with a pre-seeded account. Click to fill the form.
-        </p>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {DEMO_ACCOUNTS.map((account) => (
-            <button
-              key={account.email}
-              type="button"
-              onClick={() => fillDemo(account)}
-              className="rounded-lg border bg-background px-3 py-2.5 text-left transition-all hover:border-primary/50 hover:shadow-sm"
-            >
-              <span className="block text-[13px] font-semibold text-foreground">
-                {account.label}
-                <span className="ml-1.5 font-normal text-muted-foreground">
-                  ({ROLE_LABELS[account.role]})
-                </span>
-              </span>
-              <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                <Mail className="size-3 shrink-0" aria-hidden="true" />
-                {account.email}
-              </span>
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );

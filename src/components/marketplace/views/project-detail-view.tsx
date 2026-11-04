@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  ArrowLeft,
   CalendarDays,
   Check,
   DoorOpen,
@@ -283,6 +284,7 @@ function ProjectDetailSkeleton() {
 }
 
 function ProjectDetailBody({ project }: { project: ProjectDetailDTO }) {
+  const navigate = useAppStore((s) => s.navigate);
   const constructionLabel = constructionLabelOf(project.construction);
   const amenities = useMemo(
     () =>
@@ -311,23 +313,42 @@ function ProjectDetailBody({ project }: { project: ProjectDetailDTO }) {
     : "";
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      {/* Breadcrumb */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <CrumbLink href="/">Home</CrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <CrumbLink href="/projects">Projects</CrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem className="max-w-[10rem] sm:max-w-[16rem]">
-            <BreadcrumbPage className="truncate">{project.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <section className="mx-auto max-w-7xl px-4 py-6 pb-20 sm:px-6 lg:px-8 lg:py-10">
+      {/* Top Navigation Row: Back button & Breadcrumb */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              window.history.back();
+            } else {
+              navigate("/projects");
+            }
+          }}
+          className="group inline-flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
+          aria-label="Back to projects list"
+        >
+          <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
+          <span>Back to projects</span>
+        </button>
+
+        {/* Breadcrumb */}
+        <Breadcrumb className="hidden sm:block">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <CrumbLink href="/">Home</CrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <CrumbLink href="/projects">Projects</CrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="max-w-[10rem] sm:max-w-[16rem]">
+              <BreadcrumbPage className="truncate">{project.name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
       {/* Header */}
       <div className="mt-4">

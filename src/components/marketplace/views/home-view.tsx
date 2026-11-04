@@ -90,21 +90,14 @@ export function HomeView() {
       .then((res) => active && setInsights({ loading: false, data: res }))
       .catch(() => active && setInsights({ loading: false, data: null }));
 
-    // Parallel per-city listing counts (total from pagination meta)
-    Promise.allSettled(
-      HOME_CITIES.map((city) =>
-        api<Paginated<PropertyCardDTO>>(
-          `/api/properties?city=${encodeURIComponent(city)}&pageSize=1`
-        ).then((res) => [city, res.pagination.total] as const)
-      )
-    ).then((results) => {
-      if (!active) return;
-      const counts: Record<string, number | null> = {};
-      for (const r of results) {
-        if (r.status === "fulfilled") counts[r.value[0]] = r.value[1];
-      }
-      setCityCounts(counts);
-    });
+    // Aggregated per-city listing counts (single query)
+    api<{ counts: Record<string, number> }>("/api/properties?cityCounts=1")
+      .then((res) => {
+        if (active && res?.counts) setCityCounts(res.counts);
+      })
+      .catch(() => {
+        if (active) setCityCounts({});
+      });
 
     return () => {
       active = false;

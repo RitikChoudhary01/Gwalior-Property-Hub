@@ -14,6 +14,7 @@ export function ImageGallery({ images, title }: { images: GalleryImage[]; title:
   const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   if (!images.length) {
     return (
@@ -29,10 +30,32 @@ export function ImageGallery({ images, title }: { images: GalleryImage[]; title:
     return (current + delta + length) % length;
   }
 
+  function handleTouchStart(e: React.TouchEvent) {
+    setTouchStartX(e.touches[0].clientX);
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchStartX - touchEndX;
+    if (Math.abs(deltaX) > 35 && images.length > 1) {
+      if (deltaX > 0) {
+        setActive((a) => step(1, images.length, a));
+      } else {
+        setActive((a) => step(-1, images.length, a));
+      }
+    }
+    setTouchStartX(null);
+  }
+
   return (
     <div>
-      {/* Main image */}
-      <div className="group relative aspect-[16/10] overflow-hidden rounded-xl bg-muted sm:aspect-[16/9]">
+      {/* Main image with touch swipe support */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="group relative aspect-[16/10] overflow-hidden rounded-xl bg-muted sm:aspect-[16/9] select-none"
+      >
         <button
           type="button"
           className="absolute inset-0 size-full cursor-zoom-in"

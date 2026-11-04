@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { ok, handle, rateLimit, clientIp } from "@/lib/api-helpers";
 import { getLocalityStats } from "@/lib/insights";
+import { memoryCache } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,10 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
+    const cacheKey = `insights:${url.search}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) return ok(cached);
+
     const cityParam = url.searchParams.get("city")?.trim();
     const limitParam = Number(url.searchParams.get("limit") ?? "8");
     const limit = Number.isFinite(limitParam) ? limitParam : 8;
@@ -33,6 +38,8 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    return ok({ city: cityParam ?? null, totalListings, localities });
+    const result = { city: cityParam ?? null, totalListings, localities };
+    memoryCache.set(cacheKey, result, 60_000);
+    return ok(result);
   });
 }

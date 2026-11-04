@@ -7,7 +7,20 @@
 
 import { create } from "zustand";
 import { api } from "@/lib/api-client";
-import type { AuthUser, NotificationDTO } from "@/lib/types";
+import type { AuthUser, NotificationDTO, PropertyCardDTO } from "@/lib/types";
+
+const RECENTLY_VIEWED_KEY = "gph_recently_viewed";
+const MAX_RECENTLY_VIEWED = 12;
+
+function loadStoredRecentlyViewed(): PropertyCardDTO[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENTLY_VIEWED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
 export interface HashRoute {
   path: string; // e.g. "/properties/abc-123"
@@ -51,6 +64,11 @@ interface AppState {
   unreadCount: number;
   loadNotifications: () => Promise<void>;
   markAllRead: () => Promise<void>;
+
+  // ---- recently viewed ----
+  recentlyViewed: PropertyCardDTO[];
+  recordViewedProperty: (property: PropertyCardDTO) => void;
+  clearRecentlyViewed: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -147,5 +165,30 @@ export const useAppStore = create<AppState>((set, get) => ({
       notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
       unreadCount: 0,
     }));
+  },
+
+  // ---------- recently viewed ----------
+  recentlyViewed: loadStoredRecentlyViewed(),
+
+  recordViewedProperty: (property) => {
+    set((state) => {
+      const filtered = state.recentlyViewed.filter((p) => p.id !== property.id);
+      const updated = [property, ...filtered].slice(0, MAX_RECENTLY_VIEWED);
+      try {
+        localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore localStorage errors
+      }
+      return { recentlyViewed: updated };
+    });
+  },
+
+  clearRecentlyViewed: () => {
+    try {
+      localStorage.removeItem(RECENTLY_VIEWED_KEY);
+    } catch {
+      // ignore
+    }
+    set({ recentlyViewed: [] });
   },
 }));

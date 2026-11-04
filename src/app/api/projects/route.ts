@@ -6,6 +6,7 @@ import { ok, fail, handle, parseBody } from "@/lib/api-helpers";
 import { audit } from "@/lib/audit";
 import { notifyAdmins } from "@/lib/notifications";
 import { projectListInclude, projectToCard } from "@/lib/serializers";
+import { memoryCache } from "@/lib/cache";
 import { uniqueSlug } from "@/lib/slug";
 import { PROJECT_STATUSES } from "@/lib/constants";
 
@@ -17,6 +18,11 @@ export async function GET(req: Request) {
   return handle(async () => {
     const sp = new URL(req.url).searchParams;
     const scope = sp.get("scope") ?? "public";
+    const cacheKey = scope === "public" ? `projects:list:${sp.toString()}` : null;
+    if (cacheKey) {
+      const cached = memoryCache.get(cacheKey);
+      if (cached) return ok(cached);
+    }
     const page = Math.max(1, Number(sp.get("page") ?? 1));
     const pageSize = Math.min(48, Math.max(1, Number(sp.get("pageSize") ?? 12)));
 
@@ -48,10 +54,15 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    return ok({
+    const result = {
       data: projects.map(projectToCard),
       pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
-    });
+    };
+    if (cacheKey) {
+      memoryCache.set(cacheKey, result, 60_000);
+    }
+
+    return ok(result);
   });
 }
 

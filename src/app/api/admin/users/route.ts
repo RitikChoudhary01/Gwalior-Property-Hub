@@ -30,6 +30,9 @@ export async function GET(req: Request) {
 
     const where: Prisma.UserWhereInput = {};
     if (role) where.role = role;
+    const verified = sp.get("verified");
+    if (verified === "true" || verified === "1") where.isVerified = true;
+    if (verified === "false" || verified === "0") where.isVerified = false;
     if (q) {
       where.OR = [
         { name: { contains: q } },

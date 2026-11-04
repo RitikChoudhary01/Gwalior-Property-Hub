@@ -26,6 +26,13 @@ export async function POST(req: Request) {
     if (!user.isActive) {
       return fail("This account has been deactivated. Please contact support.", 403);
     }
+    if (user.role === "BUILDER" && !user.isVerified) {
+      return fail(
+        "Your builder account is pending administrator approval. You will be able to sign in once an administrator approves your account.",
+        403,
+        { pendingApproval: true }
+      );
+    }
 
     const token = await createSession(user.id);
     const res = NextResponse.json(toAuthUser(user));

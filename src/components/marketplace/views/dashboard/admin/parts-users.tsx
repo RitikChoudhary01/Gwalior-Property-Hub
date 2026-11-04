@@ -45,6 +45,7 @@ import {
 
 const ROLE_FILTERS = [
   { value: "ALL", label: "All roles" },
+  { value: "BUILDER_PENDING", label: "Pending Builder Approvals" },
   { value: "BUYER", label: ROLE_LABELS.BUYER },
   { value: "SELLER", label: ROLE_LABELS.SELLER },
   { value: "BUILDER", label: ROLE_LABELS.BUILDER },
@@ -60,15 +61,18 @@ export function AdminUsers() {
   const [page, setPage] = useState(1);
 
   const { data, loading, error, refetch } = useApiData<Paginated<AdminUserDTO>>(
-    () =>
-      api(
+    () => {
+      const isPendingBuilder = role === "BUILDER_PENDING";
+      return api(
         `/api/admin/users${qs({
-          role: role !== "ALL" ? role : null,
+          role: isPendingBuilder ? "BUILDER" : role !== "ALL" ? role : null,
+          verified: isPendingBuilder ? "false" : null,
           q: debouncedSearch || null,
           page,
           pageSize: 10,
         })}`
-      ),
+      );
+    },
     [role, debouncedSearch, page]
   );
 
@@ -171,6 +175,9 @@ export function AdminUsers() {
                                 {u.name}
                                 {isSelf ? <span className="ml-1.5 text-xs text-muted-foreground">(you)</span> : null}
                               </p>
+                              {u.builderProfile?.companyName ? (
+                                <p className="truncate text-xs font-semibold text-primary">{u.builderProfile.companyName}</p>
+                              ) : null}
                               <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                             </div>
                           </div>
@@ -206,31 +213,43 @@ export function AdminUsers() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{formatDate(u.createdAt)}</TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                          <div className="flex items-center justify-end gap-2">
+                            {u.role === "BUILDER" && !u.isVerified ? (
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Actions for ${u.name}`}
-                                disabled={isSelf}
+                                size="sm"
+                                className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm"
+                                onClick={() => patchUser(u, "verify")}
                               >
-                                <MoreHorizontal className="size-4" aria-hidden="true" />
+                                <BadgeCheck className="size-3.5" aria-hidden="true" />
+                                Approve Builder
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44">
-                              <DropdownMenuItem onClick={() => patchUser(u, u.isVerified ? "unverify" : "verify")}>
-                                <BadgeCheck className="size-4" aria-hidden="true" />
-                                {u.isVerified ? "Unverify" : "Verify"}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => patchUser(u, u.isActive ? "deactivate" : "activate")}
-                                className={u.isActive ? "text-rose-600 focus:text-rose-600" : undefined}
-                              >
-                                <Power className="size-4" aria-hidden="true" />
-                                {u.isActive ? "Deactivate" : "Activate"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            ) : null}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Actions for ${u.name}`}
+                                  disabled={isSelf}
+                                >
+                                  <MoreHorizontal className="size-4" aria-hidden="true" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem onClick={() => patchUser(u, u.isVerified ? "unverify" : "verify")}>
+                                  <BadgeCheck className="size-4" aria-hidden="true" />
+                                  {u.isVerified ? "Unverify" : "Verify"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => patchUser(u, u.isActive ? "deactivate" : "activate")}
+                                  className={u.isActive ? "text-rose-600 focus:text-rose-600" : undefined}
+                                >
+                                  <Power className="size-4" aria-hidden="true" />
+                                  {u.isActive ? "Deactivate" : "Activate"}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

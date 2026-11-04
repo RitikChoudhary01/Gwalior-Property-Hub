@@ -24,6 +24,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  ShieldAlert,
   Trash2,
   User,
   Wallet,
@@ -176,6 +177,20 @@ export function BuilderDashboard({ initialTab }: { initialTab?: string }) {
           Create project
         </Button>
       </header>
+
+      {!verified && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50/90 p-4 text-amber-950 shadow-sm">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="size-5 text-amber-600 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold">Verification & Approval Pending</p>
+              <p className="text-xs text-amber-800">
+                Your builder account is awaiting administrator approval. You can draft projects and explore the CRM in the meantime.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 lg:flex lg:gap-6">
         {/* Desktop sidebar */}
@@ -498,6 +513,30 @@ function BuilderProjectsTab({
                     {formatNumber(p.availableUnits)} of {formatNumber(p.totalUnits)} units available
                   </p>
                 </div>
+
+                {p.status === "REJECTED" ? (
+                  <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50/90 p-3 text-xs text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+                    <p className="flex items-center gap-1.5 font-semibold text-rose-700 dark:text-rose-300">
+                      <ShieldAlert className="size-3.5 shrink-0 text-rose-600" />
+                      Moderation Feedback (Action Required)
+                    </p>
+                    <p className="mt-1 leading-relaxed text-rose-800 dark:text-rose-300">
+                      {p.rejectionReason || "Listing requires revisions before it can be published."}
+                    </p>
+                    <div className="mt-2.5">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 px-2.5 text-xs font-medium shadow-none"
+                        onClick={() => onEdit(p)}
+                      >
+                        <Pencil className="mr-1.5 size-3" />
+                        Edit &amp; Resubmit for Approval
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="mt-4 flex flex-wrap gap-2 border-t pt-3.5">
                   {p.status === "PUBLISHED" ? (
                     <Button
@@ -662,7 +701,35 @@ function BuilderInventoryTab() {
                         {u.type !== "Plot" && u.bhk ? formatConfig(u.bhk, u.type) : u.type}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={u.availability} />
+                        <Select
+                          value={u.availability}
+                          disabled={busyId === u.id}
+                          onValueChange={(val) => setAvailability(u, val)}
+                        >
+                          <SelectTrigger className="h-7 w-[112px] text-xs font-medium">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AVAILABLE">
+                              <span className="flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400">
+                                <span className="size-1.5 rounded-full bg-emerald-500" />
+                                Available
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="RESERVED">
+                              <span className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-400">
+                                <span className="size-1.5 rounded-full bg-amber-500" />
+                                Reserved
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="SOLD">
+                              <span className="flex items-center gap-1.5 font-medium text-rose-700 dark:text-rose-400">
+                                <span className="size-1.5 rounded-full bg-rose-500" />
+                                Sold
+                              </span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={u.status} />

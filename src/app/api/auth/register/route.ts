@@ -24,6 +24,9 @@ const schema = z.object({
   role: z.enum(["BUYER", "SELLER", "BUILDER"]),
   companyName: z.string().trim().min(2).max(100).optional(),
   city: z.string().trim().max(60).optional(),
+  reraNumber: z.string().trim().max(60).optional(),
+  website: z.string().trim().url().optional().or(z.literal("")),
+  description: z.string().trim().max(1000).optional(),
 });
 
 export async function POST(req: Request) {
@@ -54,7 +57,13 @@ export async function POST(req: Request) {
         ...(body.role === "BUILDER" && body.companyName
           ? {
               builderProfile: {
-                create: { companyName: body.companyName, city: body.city || null },
+                create: {
+                  companyName: body.companyName,
+                  city: body.city || null,
+                  reraNumber: body.reraNumber || null,
+                  website: body.website || null,
+                  description: body.description || null,
+                },
               },
             }
           : {}),
@@ -62,18 +71,30 @@ export async function POST(req: Request) {
       include: { builderProfile: true },
     });
 
-    const token = await createSession(user.id);
-    await audit(user.id, "USER_REGISTERED", "USER", user.id, `Role: ${user.role}`);
-
-    if (body.role === "SELLER" || body.role === "BUILDER") {
-      const label = body.role === "BUILDER" ? body.companyName : body.name;
+    if (body.role === "BUILDER") {
       await notifyAdmins({
-        title: `${body.role === "BUILDER" ? "Builder" : "Seller"} registration`,
-        message: `${label} (${body.email}) registered and requires verification.`,
+        title: `Builder Approval Request: ${body.companyName}`,
+        message: `${body.companyName} (${body.name}, ${body.email}${body.phone ? `, ${body.phone}` : ""}) registered as a developer and is awaiting your approval.`,
         type: "SYSTEM",
         link: "#/dashboard?tab=users",
       });
+      await audit(user.id, "BUILDER_APPROVAL_REQUESTED", "USER", user.id, `Builder company "${body.companyName}" registered and submitted for admin approval`);
+
+      // Only builders require admin approval before login
+      return NextResponse.json(
+        {
+          pendingApproval: true,
+          role: "BUILDER",
+          companyName: body.companyName,
+          message: "Your builder account has been registered and submitted for administrator approval.",
+        },
+        { status: 201 }
+      );
     }
+
+    // Buyers and sellers can directly register and log in immediately
+    const token = await createSession(user.id);
+    await audit(user.id, "USER_REGISTERED", "USER", user.id, `Role: ${user.role}`);
 
     const res = NextResponse.json(toAuthUser(user), { status: 201 });
     res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());

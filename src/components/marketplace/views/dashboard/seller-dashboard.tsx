@@ -539,10 +539,30 @@ function ListingsTab({
                   <span>Added {formatDate(p.createdAt)}</span>
                 </div>
 
-                {p.status === "REJECTED" && rejectionReasons[p.id] && (
-                  <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] leading-relaxed text-rose-800">
-                    <span className="font-semibold">Reason:</span> {rejectionReasons[p.id]}
-                  </p>
+                {p.status === "REJECTED" && (
+                  <div className="mt-3.5 rounded-lg border border-rose-200 bg-rose-50 p-3.5 text-[13px] text-rose-900">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-rose-950">Action required — rejection feedback:</span>{" "}
+                        {rejectionReasons[p.id] || "Your listing needs updates before it can be approved and published."}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1.5 shrink-0 shadow-sm"
+                        disabled={editLoadingId === p.id}
+                        onClick={() => void startEdit(p)}
+                      >
+                        {editLoadingId === p.id ? (
+                          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Pencil className="size-3.5" aria-hidden="true" />
+                        )}
+                        Edit & Resubmit
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

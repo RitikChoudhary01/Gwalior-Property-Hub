@@ -15,7 +15,9 @@ import {
   CalendarDays,
   ChevronDown,
   ClipboardList,
+  Clock,
   Heart,
+  History,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -26,6 +28,7 @@ import {
   Route,
   Search,
   Sparkles,
+  Trash2,
   UserRound,
   UserRoundCheck,
   XCircle,
@@ -86,10 +89,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "favourites", label: "Favourites", icon: Heart },
-  { id: "requirements", label: "My requirements", icon: ClipboardList },
-  { id: "enquiries", label: "My journey", icon: Route },
-  { id: "visits", label: "Site visits", icon: CalendarDays },
+  { id: "enquiries", label: "My Enquiries", icon: Route },
+  { id: "favourites", label: "Saved Properties", icon: Heart },
+  { id: "visits", label: "Site Visit Requests", icon: CalendarDays },
+  { id: "recently-viewed", label: "Recently Viewed", icon: History },
+  { id: "requirements", label: "My Requirements", icon: ClipboardList },
   { id: "profile", label: "Profile", icon: UserRound },
 ] as const;
 
@@ -475,6 +479,26 @@ function EnquiriesTab() {
   const navigate = useAppStore((s) => s.navigate);
   const { data, loading, error, refetch } = useApiData<Paginated<LeadDTO>>("/api/leads?pageSize=50");
   const leads = data?.data ?? [];
+  const [filter, setFilter] = useState<"all" | "active" | "visits" | "closed">("all");
+  const [closingLead, setClosingLead] = useState<LeadDTO | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function closeEnquiry(lead: LeadDTO) {
+    setBusyId(lead.id);
+    try {
+      await api(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "LOST" }),
+      });
+      toast.success("Enquiry closed", { description: lead.property.title });
+      setClosingLead(null);
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not close enquiry. Please try again.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -493,108 +517,224 @@ function EnquiriesTab() {
       <EmptyState
         icon={<MessageSquareText className="size-6" aria-hidden="true" />}
         title="No enquiries yet"
-        description="When you contact a listing owner, your enquiry and its status will show up here."
+        description="When you contact a listing owner, your enquiry and its progress will show up here."
         action={<Button onClick={() => navigate("/properties")}>Browse properties</Button>}
       />
     );
   }
 
+  const activeLeads = leads.filter((l) => l.status !== "CONVERTED" && l.status !== "LOST");
+  const visitLeads = leads.filter((l) => l.status === "SITE_VISIT_SCHEDULED" || l.status === "SITE_VISIT_COMPLETED");
+  const closedLeads = leads.filter((l) => l.status === "CONVERTED" || l.status === "LOST");
+
+  const filteredLeads =
+    filter === "active"
+      ? activeLeads
+      : filter === "visits"
+        ? visitLeads
+        : filter === "closed"
+          ? closedLeads
+          : leads;
+
   return (
-    <div className="space-y-4">
-      {leads.map((lead) => {
-        const closed = lead.status === "CONVERTED" || lead.status === "LOST";
-        return (
-          <article key={lead.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => navigate(`/properties/${lead.property.slug}`)}
-                className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted"
-                aria-label={`Open ${lead.property.title}`}
-              >
-                {lead.property.mainImage ? (
-                  <img
-                    src={lead.property.mainImage}
-                    alt={lead.property.title}
-                    loading="lazy"
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <span className="grid size-full place-items-center text-muted-foreground">
-                    <Search className="size-5" aria-hidden="true" />
-                  </span>
-                )}
-              </button>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/properties/${lead.property.slug}`)}
-                    className="truncate text-left text-[15px] font-medium text-foreground hover:text-primary"
-                  >
-                    {lead.property.title}
-                  </button>
-                  <StatusBadge status={lead.status} />
-                </div>
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                  Ref {lead.reference} · {lead.property.locality}, {lead.property.city} ·{" "}
-                  {formatPrice(lead.property.price)}
-                </p>
-                {lead.message && (
-                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                    {lead.message}
+    <div className="space-y-5">
+      {/* Filter tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b pb-3">
+        <button
+          type="button"
+          onClick={() => setFilter("all")}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            filter === "all"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          All enquiries ({leads.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("active")}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            filter === "active"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          In Progress ({activeLeads.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("visits")}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            filter === "visits"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Site Visits ({visitLeads.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("closed")}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            filter === "closed"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Closed ({closedLeads.length})
+        </button>
+      </div>
+
+      {filteredLeads.length === 0 ? (
+        <p className="rounded-xl border border-dashed bg-card/60 p-8 text-center text-sm text-muted-foreground">
+          No enquiries matching this filter.
+        </p>
+      ) : (
+        filteredLeads.map((lead) => {
+          const closed = lead.status === "CONVERTED" || lead.status === "LOST";
+          return (
+            <article key={lead.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/properties/${lead.property.slug}`)}
+                  className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted"
+                  aria-label={`Open ${lead.property.title}`}
+                >
+                  {lead.property.mainImage ? (
+                    <img
+                      src={lead.property.mainImage}
+                      alt={lead.property.title}
+                      loading="lazy"
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-full place-items-center text-muted-foreground">
+                      <Search className="size-5" aria-hidden="true" />
+                    </span>
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/properties/${lead.property.slug}`)}
+                      className="truncate text-left text-[15px] font-medium text-foreground hover:text-primary"
+                    >
+                      {lead.property.title}
+                    </button>
+                    <StatusBadge status={lead.status} />
+                  </div>
+                  <p className="mt-1 text-[13px] text-muted-foreground">
+                    Ref {lead.reference} · {lead.property.locality}, {lead.property.city} ·{" "}
+                    {formatPrice(lead.property.price)}
                   </p>
-                )}
-              </div>
-              {/* Assigned Gwalior Property Hub advisor */}
-              <div className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  <UserRoundCheck className="size-3.5" aria-hidden="true" />
-                  Your advisor
-                </span>
-                {lead.assignedTo ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Avatar className="size-7">
-                      <AvatarFallback className="bg-accent text-[11px] font-semibold text-accent-foreground">
-                        {initials(lead.assignedTo.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium text-foreground">{lead.assignedTo.name}</span>
+                  {lead.message && (
+                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                      {lead.message}
+                    </p>
+                  )}
+                </div>
+                {/* Assigned Gwalior Property Hub advisor */}
+                <div className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <UserRoundCheck className="size-3.5" aria-hidden="true" />
+                    Your advisor
                   </span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">Being assigned</span>
-                )}
+                  {lead.assignedTo ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Avatar className="size-7">
+                        <AvatarFallback className="bg-accent text-[11px] font-semibold text-accent-foreground">
+                          {initials(lead.assignedTo.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium text-foreground">{lead.assignedTo.name}</span>
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Being assigned</span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* The journey — pipeline stages, advisor and next step */}
-            <div className="mt-4 border-t pt-4">
-              <JourneyTracker status={lead.status} />
-            </div>
+              {/* The journey — pipeline stages, advisor and next step */}
+              <div className="mt-4 border-t pt-4">
+                <JourneyTracker status={lead.status} />
+              </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[13px] text-muted-foreground">
-              {lead.budget != null && (
-                <span>
-                  Budget: <span className="font-medium text-foreground">{formatPrice(lead.budget)}</span>
-                </span>
-              )}
-              {lead.lastContactedAt && (
-                <span>
-                  Last advisor contact:{" "}
-                  <span className="font-medium text-foreground">{formatDate(lead.lastContactedAt)}</span>
-                </span>
-              )}
-              {!closed && lead.followUpDate && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-primary">
-                  <Phone className="size-3.5" aria-hidden="true" />
-                  Next update by {formatDate(lead.followUpDate)}
-                </span>
-              )}
-              <span className="sm:ml-auto">Submitted {formatDate(lead.createdAt)}</span>
-            </div>
-          </article>
-        );
-      })}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3.5 text-[13px] text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  {lead.budget != null && (
+                    <span>
+                      Budget: <span className="font-medium text-foreground">{formatPrice(lead.budget)}</span>
+                    </span>
+                  )}
+                  {lead.lastContactedAt && (
+                    <span>
+                      Last contact: <span className="font-medium text-foreground">{formatDate(lead.lastContactedAt)}</span>
+                    </span>
+                  )}
+                  <span>Submitted {formatDate(lead.createdAt)}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/properties/${lead.property.slug}`)}
+                  >
+                    View Listing
+                  </Button>
+                  {!closed && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={busyId === lead.id}
+                      onClick={() => setClosingLead(lead)}
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      Close enquiry
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })
+      )}
+
+      {/* Confirm Close Enquiry Dialog */}
+      <AlertDialog open={!!closingLead} onOpenChange={(o) => !o && setClosingLead(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close this enquiry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {closingLead &&
+                `Are you no longer interested in "${closingLead.property.title}"? This enquiry will be closed and removed from active tracking.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busyId !== null}>Keep open</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busyId !== null}
+              onClick={(e) => {
+                e.preventDefault();
+                if (closingLead) void closeEnquiry(closingLead);
+              }}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {busyId !== null && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+              Close enquiry
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -769,6 +909,58 @@ function VisitsTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// ============================================================
+// Recently Viewed tab (properties the buyer has inspected)
+// ============================================================
+
+function RecentlyViewedTab() {
+  const navigate = useAppStore((s) => s.navigate);
+  const recentlyViewed = useAppStore((s) => s.recentlyViewed);
+  const clearRecentlyViewed = useAppStore((s) => s.clearRecentlyViewed);
+
+  if (recentlyViewed.length === 0) {
+    return (
+      <EmptyState
+        icon={<History className="size-6" aria-hidden="true" />}
+        title="No recently viewed properties"
+        description="Homes and projects you explore will automatically appear here for quick reference."
+        action={<Button onClick={() => navigate("/properties")}>Explore properties</Button>}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+            Recently viewed
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {recentlyViewed.length} home{recentlyViewed.length === 1 ? "" : "s"} you inspected recently
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={clearRecentlyViewed}
+          className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" aria-hidden="true" />
+          Clear history
+        </Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {recentlyViewed.map((property) => (
+          <PropertyCard key={property.id} property={property} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -965,10 +1157,11 @@ export function BuyerDashboard({ initialTab }: { initialTab?: string }) {
 
         <div className="mt-6 min-w-0 lg:mt-0">
           {activeTab === "overview" && <OverviewTab />}
-          {activeTab === "favourites" && <FavouritesTab />}
-          {activeTab === "requirements" && <RequirementsTab />}
           {activeTab === "enquiries" && <EnquiriesTab />}
+          {activeTab === "favourites" && <FavouritesTab />}
           {activeTab === "visits" && <VisitsTab />}
+          {activeTab === "recently-viewed" && <RecentlyViewedTab />}
+          {activeTab === "requirements" && <RequirementsTab />}
           {activeTab === "profile" && <ProfileTab />}
         </div>
       </div>

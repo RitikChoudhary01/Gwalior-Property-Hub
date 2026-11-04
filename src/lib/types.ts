@@ -145,6 +145,7 @@ export interface ProjectCardDTO {
   possessionDate: string | null;
   reraNumber: string | null;
   status: string;
+  rejectionReason?: string | null;
   featured: boolean;
   builderName: string;
   builderVerified: boolean;
@@ -481,6 +482,7 @@ export interface AdminStats {
   buyers: number;
   sellers: number;
   builders: number;
+  pendingBuilders: number;
   activeProperties: number;
   pendingApprovals: number;
   totalLeads: number;

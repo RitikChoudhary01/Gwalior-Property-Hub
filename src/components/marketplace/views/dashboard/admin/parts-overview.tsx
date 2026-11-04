@@ -144,6 +144,29 @@ export function AdminOverview({ onNavigate }: { onNavigate: (tab: string) => voi
         }
       />
 
+      {data.pendingBuilders > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <Building2 className="size-6 text-amber-700 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold text-amber-950">
+                {data.pendingBuilders} Builder Approval Request{data.pendingBuilders > 1 ? "s" : ""} Pending
+              </p>
+              <p className="text-xs text-amber-800">
+                New builders have registered and require verification before their developments are approved.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-amber-800 hover:bg-amber-900 text-white font-medium shadow-sm"
+            onClick={() => onNavigate("users")}
+          >
+            Review Builder Requests
+          </Button>
+        </div>
+      )}
+
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard

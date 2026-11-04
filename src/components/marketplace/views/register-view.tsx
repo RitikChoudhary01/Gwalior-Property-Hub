@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Search, Home, Building2, UserPlus } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, Search, Home, Building2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,11 +78,14 @@ export function RegisterView() {
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [reraNumber, setReraNumber] = useState("");
+  const [website, setWebsite] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [builderSubmitted, setBuilderSubmitted] = useState<string | null>(null);
 
   function validate(): string | null {
     if (!name.trim()) return "Please enter your full name.";
@@ -109,7 +112,7 @@ export function RegisterView() {
 
     setSubmitting(true);
     try {
-      const user = await api<AuthUser>("/api/auth/register", {
+      const res = await api<({ pendingApproval?: boolean } & AuthUser)>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({
           name: name.trim(),
@@ -118,14 +121,29 @@ export function RegisterView() {
           phone: phone.trim() || undefined,
           city: city || undefined,
           role,
-          ...(role === "BUILDER" ? { companyName: companyName.trim() } : {}),
+          ...(role === "BUILDER"
+            ? {
+                companyName: companyName.trim(),
+                reraNumber: reraNumber.trim() || undefined,
+                website: website.trim() || undefined,
+              }
+            : {}),
         }),
       });
-      useAppStore.getState().setUser(user);
+
+      if (role === "BUILDER" && res.pendingApproval) {
+        setBuilderSubmitted(companyName.trim());
+        toast.info("Registration submitted", {
+          description: "Your builder account has been sent for administrator review.",
+        });
+        return;
+      }
+
+      useAppStore.getState().setUser(res);
       useAppStore.getState().loadNotifications();
       useAppStore.getState().loadFavourites();
       toast.success("Account created", {
-        description: `Welcome to Gwalior Property Hub, ${user.name.split(" ")[0]}.`,
+        description: `Welcome to Gwalior Property Hub, ${res.name.split(" ")[0]}.`,
       });
       navigate("/dashboard");
     } catch (err) {
@@ -139,8 +157,70 @@ export function RegisterView() {
     }
   }
 
+  if (builderSubmitted) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-10 pb-16 sm:px-6 sm:py-14">
+        <div className="mb-4 flex items-center justify-start">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="group inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95"
+            aria-label="Back to home"
+          >
+            <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
+            <span>Back to Home</span>
+          </button>
+        </div>
+        <div className="flex justify-center">
+          <Logo />
+        </div>
+        <div className="mt-6 rounded-xl border bg-card p-6 text-center shadow-sm sm:p-8">
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-100 text-amber-700">
+            <Building2 className="size-6" aria-hidden="true" />
+          </div>
+          <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-foreground">
+            Builder Approval Requested
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            Your builder account for <strong className="text-foreground">{builderSubmitted}</strong> has been registered and submitted for administrator approval.
+          </p>
+          <div className="mt-4 rounded-lg bg-muted/60 p-3.5 text-xs text-muted-foreground text-left space-y-1.5">
+            <p className="font-semibold text-foreground">Next steps:</p>
+            <p>• Our administrator team verifies developer company details.</p>
+            <p>• Once approved, you can sign in directly to manage your projects.</p>
+          </div>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button onClick={() => navigate("/login")} className="w-full">
+              Go to Sign In
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/")} className="w-full">
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-md px-4 py-12 pb-16 sm:px-6 sm:py-16">
+    <div className="mx-auto max-w-md px-4 py-10 pb-16 sm:px-6 sm:py-14">
+      <div className="mb-4 flex items-center justify-start">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              window.history.back();
+            } else {
+              navigate("/");
+            }
+          }}
+          className="group inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95"
+          aria-label="Back"
+        >
+          <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
+          <span>Back</span>
+        </button>
+      </div>
       <div className="flex justify-center">
         <Logo />
       </div>
@@ -271,19 +351,48 @@ export function RegisterView() {
           </div>
 
           {role === "BUILDER" && (
-            <div className="space-y-2">
-              <Label htmlFor="register-company">Company name *</Label>
-              <Input
-                id="register-company"
-                value={companyName}
-                onChange={(e) => {
-                  setCompanyName(e.target.value);
-                  setApiError(null);
-                }}
-                placeholder="e.g. Meridian Developers"
-                autoComplete="organization"
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="register-company">Company name *</Label>
+                <Input
+                  id="register-company"
+                  value={companyName}
+                  onChange={(e) => {
+                    setCompanyName(e.target.value);
+                    setApiError(null);
+                  }}
+                  placeholder="e.g. Meridian Developers"
+                  autoComplete="organization"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="register-rera">RERA registration number</Label>
+                  <Input
+                    id="register-rera"
+                    value={reraNumber}
+                    onChange={(e) => {
+                      setReraNumber(e.target.value);
+                      setApiError(null);
+                    }}
+                    placeholder="e.g. P-GWL-24-1234"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-website">Company website</Label>
+                  <Input
+                    id="register-website"
+                    type="url"
+                    value={website}
+                    onChange={(e) => {
+                      setWebsite(e.target.value);
+                      setApiError(null);
+                    }}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <div className="space-y-2">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  ArrowLeft,
   CalendarCheck,
   CalendarDays,
   Check,
@@ -48,7 +49,38 @@ import {
 } from "@/lib/format";
 import { BRAND, CONSTRUCTION_STATUSES } from "@/lib/constants";
 import { useAppStore } from "@/store/use-app-store";
-import type { PropertyDetailDTO } from "@/lib/types";
+import type { PropertyCardDTO, PropertyDetailDTO } from "@/lib/types";
+
+function toCardDTO(property: PropertyDetailDTO): PropertyCardDTO {
+  const mainImage = property.images.find((i) => i.isMain)?.url ?? property.images[0]?.url ?? null;
+  return {
+    id: property.id,
+    slug: property.slug,
+    title: property.title,
+    type: property.type,
+    price: property.price,
+    city: property.city,
+    state: property.state,
+    locality: property.locality,
+    bhk: property.bhk,
+    bathrooms: property.bathrooms,
+    carpetArea: property.carpetArea,
+    builtUpArea: property.builtUpArea,
+    plotArea: property.plotArea,
+    constructionStatus: property.constructionStatus,
+    availability: property.availability,
+    status: property.status,
+    verificationStatus: property.verificationStatus,
+    featured: property.featured,
+    views: property.views,
+    createdAt: property.createdAt,
+    mainImage,
+    sellerVerified: property.seller.isVerified,
+    sellerName: property.seller.name,
+    projectName: property.project?.name ?? null,
+    builderName: property.builder?.companyName ?? null,
+  };
+}
 import { EnquiryForm } from "../shared/enquiry-form";
 import { EmiCalculator } from "../shared/emi-calculator";
 import { ImageGallery } from "../shared/image-gallery";
@@ -86,12 +118,16 @@ type LoadedProperty =
 
 export function PropertyDetailView({ slugOrId }: { slugOrId: string }) {
   const [loaded, setLoaded] = useState<LoadedProperty | null>(null);
+  const recordViewedProperty = useAppStore((s) => s.recordViewedProperty);
 
   useEffect(() => {
     let cancelled = false;
     api<PropertyDetailDTO>(`/api/properties/${encodeURIComponent(slugOrId)}`)
       .then((property) => {
-        if (!cancelled) setLoaded({ key: slugOrId, ok: true, property });
+        if (!cancelled) {
+          setLoaded({ key: slugOrId, ok: true, property });
+          recordViewedProperty(toCardDTO(property));
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -255,29 +291,48 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      {/* Breadcrumb */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <CrumbLink href="/">Home</CrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <CrumbLink href="/properties">Properties</CrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <CrumbLink href={`/properties?city=${encodeURIComponent(property.city)}`}>
-              {property.city}
-            </CrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem className="max-w-[10rem] sm:max-w-[16rem]">
-            <BreadcrumbPage className="truncate">{property.title}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <section className="mx-auto max-w-7xl px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-10 lg:pb-12">
+      {/* Top Navigation Row: Back button & Breadcrumb */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              window.history.back();
+            } else {
+              navigate("/properties");
+            }
+          }}
+          className="group inline-flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
+          aria-label="Back to properties list"
+        >
+          <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
+          <span>Back to properties</span>
+        </button>
+
+        {/* Breadcrumb */}
+        <Breadcrumb className="hidden sm:block">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <CrumbLink href="/">Home</CrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <CrumbLink href="/properties">Properties</CrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <CrumbLink href={`/properties?city=${encodeURIComponent(property.city)}`}>
+                {property.city}
+              </CrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="max-w-[10rem] sm:max-w-[16rem]">
+              <BreadcrumbPage className="truncate">{property.title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
       {/* Title row */}
       <div className="mt-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
@@ -679,6 +734,39 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Mobile Floating Sticky CTA Bar */}
+      {!sold && (
+        <aside
+          aria-label="Quick mobile booking actions"
+          className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/80 bg-background/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden"
+        >
+          <div className="mx-auto flex max-w-md items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-foreground">Asking Price</p>
+              <p className="truncate font-display text-lg font-bold text-primary">
+                {formatPrice(property.price)}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {waUrl && (
+                <Button asChild size="sm" variant="outline" className="h-9 gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+                  <a href={waUrl} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="size-4" aria-hidden="true" />
+                    <span>WhatsApp</span>
+                  </a>
+                </Button>
+              )}
+              <VisitDialog property={property}>
+                <Button size="sm" className="h-9 gap-1.5 font-semibold">
+                  <CalendarCheck className="size-4" aria-hidden="true" />
+                  <span>Book Visit</span>
+                </Button>
+              </VisitDialog>
+            </div>
+          </div>
+        </aside>
       )}
     </section>
   );

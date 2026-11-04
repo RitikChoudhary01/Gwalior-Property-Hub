@@ -291,19 +291,29 @@ try {
     skipped[spec.table] = 0;
     if (rows.length === 0) continue;
 
+    console.log(`  Writing "${spec.table}" (${rows.length} rows)...`);
     const colList = spec.cols.map((c) => `"${c}"`).join(", ");
-    const ph = spec.cols.map((_, i) => `$${i + 1}`).join(", ");
-    const sql = `INSERT INTO "${spec.table}" (${colList}) VALUES (${ph}) ON CONFLICT ("${spec.conflict}") DO NOTHING`;
+    const BATCH_SIZE = 40;
 
-    for (const row of rows) {
-      const params = spec.cols.map((c) => row[c]);
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE);
+      const valueClauses = batch
+        .map((_, rIdx) => {
+          const offset = rIdx * spec.cols.length;
+          return `(${spec.cols.map((_, cIdx) => `$${offset + cIdx + 1}`).join(", ")})`;
+        })
+        .join(", ");
+      const params = batch.flatMap((row) => spec.cols.map((c) => row[c]));
+      const sql = `INSERT INTO "${spec.table}" (${colList}) VALUES ${valueClauses} ON CONFLICT ("${spec.conflict}") DO NOTHING`;
+
       try {
         const res = await client.query(sql, params);
-        if (res.rowCount && res.rowCount > 0) inserted[spec.table]++;
-        else skipped[spec.table]++;
+        const ins = res.rowCount ?? 0;
+        inserted[spec.table] += ins;
+        skipped[spec.table] += (batch.length - ins);
       } catch (err) {
         throw new Error(
-          `Failed on "${spec.table}" id=${row[spec.conflict] ?? "?"}: ${err.message}`
+          `Failed on "${spec.table}" batch [${i}..${i + batch.length}]: ${err.message}`
         );
       }
     }

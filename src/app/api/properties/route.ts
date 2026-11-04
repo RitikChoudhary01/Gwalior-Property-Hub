@@ -6,6 +6,7 @@ import { ok, fail, handle, parseBody } from "@/lib/api-helpers";
 import { audit } from "@/lib/audit";
 import { notifyAdmins } from "@/lib/notifications";
 import { propertyListInclude, toCard, toDetail, propertyDetailInclude } from "@/lib/serializers";
+import { memoryCache } from "@/lib/cache";
 import { uniqueSlug } from "@/lib/slug";
 import { PROPERTY_TYPES, FURNISHINGS, CONSTRUCTION_STATUSES, AMENITIES } from "@/lib/constants";
 
@@ -17,7 +18,31 @@ export async function GET(req: Request) {
   return handle(async () => {
     const url = new URL(req.url);
     const sp = url.searchParams;
+
+    // Fast city counts aggregation for homepage explore section
+    if (sp.get("cityCounts") === "1") {
+      const cachedCounts = memoryCache.get<Record<string, number>>("properties:cityCounts");
+      if (cachedCounts) return ok({ counts: cachedCounts });
+
+      const groups = await db.property.groupBy({
+        by: ["city"],
+        where: { status: "PUBLISHED" },
+        _count: { _all: true },
+      });
+      const counts: Record<string, number> = {};
+      for (const g of groups) {
+        counts[g.city] = g._count._all;
+      }
+      memoryCache.set("properties:cityCounts", counts, 60_000);
+      return ok({ counts });
+    }
+
     const scope = sp.get("scope") ?? "public";
+    const cacheKey = scope === "public" ? `properties:list:${url.search}` : null;
+    if (cacheKey) {
+      const cached = memoryCache.get(cacheKey);
+      if (cached) return ok(cached);
+    }
     const page = Math.max(1, Number(sp.get("page") ?? 1));
     const pageSize = Math.min(48, Math.max(1, Number(sp.get("pageSize") ?? 12)));
     const sort = sp.get("sort") ?? "recent";
@@ -49,9 +74,9 @@ export async function GET(req: Request) {
     const projectId = sp.get("projectId");
     const q = sp.get("q");
 
-    if (city) where.city = city;
-    if (state) where.state = state;
-    if (locality) where.locality = locality;
+    if (city) where.city = { equals: city, mode: "insensitive" };
+    if (state) where.state = { equals: state, mode: "insensitive" };
+    if (locality) where.locality = { equals: locality, mode: "insensitive" };
     if (type) where.type = type;
     if (projectId) where.projectId = projectId;
     if (minPrice || maxPrice) {
@@ -74,10 +99,10 @@ export async function GET(req: Request) {
     if (q) {
       where.OR = [
         ...(where.OR ?? []),
-        { title: { contains: q } },
-        { locality: { contains: q } },
-        { city: { contains: q } },
-        { description: { contains: q } },
+        { title: { contains: q, mode: "insensitive" } },
+        { locality: { contains: q, mode: "insensitive" } },
+        { city: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
       ];
     }
 
@@ -99,10 +124,15 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    return ok({
+    const result = {
       data: properties.map(toCard),
       pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
-    });
+    };
+    if (cacheKey) {
+      memoryCache.set(cacheKey, result, 60_000);
+    }
+
+    return ok(result);
   });
 }
 
@@ -230,6 +260,7 @@ export async function POST(req: Request) {
       });
     }
 
+    memoryCache.deletePrefix("properties:");
     return ok({ property: toDetail(property) }, 201);
   });
 }

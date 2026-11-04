@@ -140,7 +140,19 @@ export const CITIES: { city: string; state: string; localities: string[] }[] = [
   {
     city: "Gwalior",
     state: "Madhya Pradesh",
-    localities: ["City Centre", "Morar", "Thatipur", "Deendayal Nagar", "Gole Ka Mandir", "Bahodapur"],
+    localities: [
+      "City Centre",
+      "Thatipur",
+      "Morar",
+      "Lashkar",
+      "Alkapuri",
+      "Patel Nagar",
+      "Maharaj Bada",
+      "DD Nagar",
+      "Deendayal Nagar",
+      "Gole Ka Mandir",
+      "Bahodapur",
+    ],
   },
   {
     city: "Mumbai",

@@ -117,12 +117,15 @@ export async function PATCH(req: Request, { params }: Params) {
             : "account deactivated";
     await audit(admin.id, auditAction, "USER", user.id, `${user.name} (${user.email}) — ${detail}`);
 
+    const isBuilderApproval = user.role === "BUILDER" && body.action === "verify";
     await notify({
       userId: user.id,
-      title: NOTIFICATIONS[body.action].title,
-      message: NOTIFICATIONS[body.action].message,
+      title: isBuilderApproval ? "Builder Account Approved!" : NOTIFICATIONS[body.action].title,
+      message: isBuilderApproval
+        ? "Your builder developer account has been approved by the administration team. You can now publish projects and units across Gwalior Property Hub."
+        : NOTIFICATIONS[body.action].message,
       type: "SYSTEM",
-      link: "#/dashboard",
+      link: isBuilderApproval ? "#/dashboard?tab=projects" : "#/dashboard",
     });
 
     return ok({ user: toAdminUserDTO(updated, projectCount) });
