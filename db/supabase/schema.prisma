@@ -10,8 +10,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // transaction-mode pooler (:6543, pgbouncer) — runtime queries
+  directUrl = env("DIRECT_URL")     // session-mode pooler (:5432) — db push / migrations
 }
 
 // ============================================================

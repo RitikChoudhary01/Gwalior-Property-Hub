@@ -6,18 +6,22 @@
 // Usage:
 //   1. Create a project at https://supabase.com (free tier works)
 //   2. Project Settings → API → copy the URL + service_role key
-//      Project Settings → Database → copy the connection string
-//      Put all three in .env (see .env.example)
+//      Project Settings → Database → copy BOTH connection strings:
+//        DATABASE_URL  (transaction pooler, :6543, ?pgbouncer=true) — runtime
+//        DIRECT_URL    (session pooler, :5432) — migrations / db push
+//      Put all of them in .env (see .env.example). DIRECT_URL is
+//      auto-derived from DATABASE_URL when omitted.
 //   3. Run:  bun scripts/use-supabase.mjs
 //
 // What it does, in order:
 //   • verifies SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / DATABASE_URL
 //     (a Supabase Postgres connection string) are present in the env
+//   • derives DIRECT_URL (6543 → 5432, pgbouncer param stripped) if unset
 //   • flips prisma/schema.prisma to the PostgreSQL provider
 //     (identical 24-model schema — Postgres variant kept in
 //      db/supabase/schema.prisma with generated DDL in
 //      db/supabase/migration.sql as a manual fallback)
-//   • `prisma db push` — creates every table on Supabase
+//   • `prisma db push` (via DIRECT_URL — session pooler) — creates every table
 //   • `scripts/migrate-data.mjs` — carries over EVERY existing row
 //     from db/custom.db (users, listings, leads, deals, …) using
 //     INSERT … ON CONFLICT DO NOTHING. Re-runnable, never deletes
@@ -50,10 +54,41 @@ if (!dbUrl.startsWith("postgres")) {
   console.error(
     "✗ DATABASE_URL must be the Supabase Postgres connection string.\n" +
       "  Find it: Supabase → Project Settings → Database → Connection string (URI).\n" +
-      "  It looks like: postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"
+      "  Transaction pooler: postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true\n" +
+      "  (DIRECT_URL for migrations is auto-derived — set it only if you want to override.)"
   );
   process.exit(1);
 }
+
+// Derive DIRECT_URL (session-mode pooler, :5432) from DATABASE_URL when not
+// set: swap port 6543 → 5432 and drop the Prisma-only pgbouncer param.
+// Prisma uses directUrl for `db push` / migrate; the runtime client keeps
+// using the transaction pooler (DATABASE_URL).
+const maskUrl = (u) => u.replace(/(\/\/[^:]+:)[^@]+@/, "$1***@");
+
+function deriveDirectUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.port === "6543") u.port = "5432";
+    u.searchParams.delete("pgbouncer");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+if (!process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = deriveDirectUrl(dbUrl);
+  console.log(`→ DIRECT_URL not set — derived session-pooler URL:`);
+  console.log(`    ${maskUrl(process.env.DIRECT_URL)}`);
+} else if (!process.env.DIRECT_URL.startsWith("postgres")) {
+  console.error("✗ DIRECT_URL is set but is not a Postgres connection string.");
+  process.exit(1);
+} else {
+  console.log(`→ DIRECT_URL: ${maskUrl(process.env.DIRECT_URL)}`);
+}
+
+console.log(`→ DATABASE_URL (runtime, transaction pooler): ${maskUrl(dbUrl)}`);
 
 console.log("→ Flipping Prisma provider to PostgreSQL …");
 copyFileSync("db/supabase/schema.prisma", "prisma/schema.prisma");
