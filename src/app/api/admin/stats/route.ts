@@ -7,6 +7,7 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { ok, handle } from "@/lib/api-helpers";
+import { memoryCache } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,9 @@ const QUALIFIED_LEAD_STATUSES = [
 export async function GET() {
   return handle(async () => {
     await requireUser(["ADMIN"]);
+
+    const cached = memoryCache.get("admin:stats");
+    if (cached) return ok(cached);
 
     // last 6 calendar months (current month - 5 ... current), chronological order
     const now = new Date();
@@ -86,7 +90,7 @@ export async function GET() {
     const commissionEarned = commissionAgg._sum.amount ?? 0;
     const commissionReceived = commissionAgg._sum.paidAmount ?? 0;
 
-    return ok({
+    const result = {
       totalUsers,
       buyers,
       sellers,
@@ -104,6 +108,8 @@ export async function GET() {
       leadsByStatus: leadStatusGroups.map((g) => ({ status: g.status, count: g._count._all })),
       leadsByMonth: months.map((m) => ({ month: m.label, count: monthCounts.get(m.key) ?? 0 })),
       propertiesByCity: cityGroups.map((g) => ({ city: g.city, count: g._count._all })),
-    });
+    };
+    memoryCache.set("admin:stats", result, 30_000);
+    return ok(result);
   });
 }

@@ -10,6 +10,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { ok, fail, handle, parseBody } from "@/lib/api-helpers";
+import { memoryCache } from "@/lib/cache";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
 import { agreementReference } from "@/lib/slug";
@@ -74,6 +75,10 @@ export async function GET(req: Request) {
     await requireUser(["ADMIN"]);
 
     const sp = new URL(req.url).searchParams;
+    const cacheKey = `admin:agreements:${sp.toString()}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) return ok(cached);
+
     const partyType = sp.get("partyType");
     const status = sp.get("status");
 
@@ -99,7 +104,9 @@ export async function GET(req: Request) {
       ...builderAgreements.map((a) => ({ dto: builderToDTO(a), createdAt: a.createdAt.getTime() })),
     ].sort((x, y) => y.createdAt - x.createdAt);
 
-    return ok({ data: merged.map((m) => m.dto) });
+    const result = { data: merged.map((m) => m.dto) };
+    memoryCache.set(cacheKey, result, 30_000);
+    return ok(result);
   });
 }
 

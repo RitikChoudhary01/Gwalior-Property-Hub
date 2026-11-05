@@ -8,6 +8,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { ok, handle } from "@/lib/api-helpers";
+import { memoryCache } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,12 @@ export async function GET(req: Request) {
   return handle(async () => {
     await requireUser(["ADMIN"]);
 
-    const status = new URL(req.url).searchParams.get("status");
+    const url = new URL(req.url);
+    const cacheKey = `admin:commissions:${url.search}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) return ok(cached);
+
+    const status = url.searchParams.get("status");
     const where: Prisma.CommissionWhereInput = {};
     if (status) where.status = status;
 
@@ -72,6 +78,8 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return ok({ data: commissions.map(toCommissionDTO) });
+    const result = { data: commissions.map(toCommissionDTO) };
+    memoryCache.set(cacheKey, result, 30_000);
+    return ok(result);
   });
 }

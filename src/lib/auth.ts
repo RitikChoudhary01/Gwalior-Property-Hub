@@ -64,6 +64,13 @@ export function sessionCookieOptions() {
 
 export type SessionUser = User & { builderProfile: Builder | null };
 
+const sessionCache = new Map<string, { user: SessionUser; expires: number }>();
+
+export function clearSessionCache(token?: string) {
+  if (token) sessionCache.delete(token);
+  else sessionCache.clear();
+}
+
 /** Reads the session cookie, validates it against the DB, returns the user (or null). */
 export async function getSessionUser(): Promise<SessionUser | null> {
   try {
@@ -71,12 +78,21 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     const token = store.get(SESSION_COOKIE)?.value;
     if (!token) return null;
 
+    const cached = sessionCache.get(token);
+    if (cached && Date.now() < cached.expires) {
+      return cached.user;
+    }
+
     const session = await db.session.findUnique({
       where: { id: token },
       include: { user: { include: { builderProfile: true } } },
     });
-    if (!session || session.expiresAt < new Date() || !session.user.isActive) return null;
+    if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+      sessionCache.delete(token);
+      return null;
+    }
 
+    sessionCache.set(token, { user: session.user, expires: Date.now() + 30_000 });
     return session.user;
   } catch {
     return null;
@@ -87,6 +103,7 @@ export async function destroySession(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (token) {
+    sessionCache.delete(token);
     await db.session.deleteMany({ where: { id: token } });
   }
 }

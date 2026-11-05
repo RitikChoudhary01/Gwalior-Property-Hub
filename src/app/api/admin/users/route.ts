@@ -8,6 +8,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { ok, handle } from "@/lib/api-helpers";
+import { memoryCache } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,10 @@ export async function GET(req: Request) {
     await requireUser(["ADMIN"]);
 
     const sp = new URL(req.url).searchParams;
+    const cacheKey = `admin:users:${sp.toString()}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) return ok(cached);
+
     const page = Math.max(1, Number(sp.get("page")) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(sp.get("pageSize")) || 20));
     const role = sp.get("role");
@@ -59,7 +64,7 @@ export async function GET(req: Request) {
       : [];
     const projectCounts = new Map(projectGroups.map((g) => [g.builderId, g._count]));
 
-    return ok({
+    const result = {
       data: users.map((u: UserRow) => ({
         id: u.id,
         name: u.name,
@@ -89,6 +94,8 @@ export async function GET(req: Request) {
         total,
         totalPages: Math.max(1, Math.ceil(total / pageSize)),
       },
-    });
+    };
+    memoryCache.set(cacheKey, result, 30_000);
+    return ok(result);
   });
 }

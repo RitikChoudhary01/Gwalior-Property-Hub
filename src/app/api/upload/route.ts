@@ -80,12 +80,15 @@ export async function POST(req: Request) {
     const name = `${randomUUID()}${ext}`;
 
     if (SUPABASE_URL && SUPABASE_KEY) {
-      // production: Supabase Storage
-      const url = await supabaseUpload(bytes, file.type, name);
-      return ok({ url, name: file.name }, 201);
+      try {
+        const url = await supabaseUpload(bytes, file.type, name);
+        return ok({ url, name: file.name }, 201);
+      } catch (err) {
+        console.warn("Supabase upload failed, safely falling back to local storage:", err);
+      }
     }
 
-    // dev default: local disk
+    // fallback: local disk under public/uploads
     const dir = path.join(process.cwd(), "public", "uploads");
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, name), bytes);

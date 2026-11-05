@@ -11,6 +11,8 @@ import { requireUser } from "@/lib/auth";
 import { ok, fail, handle, parseBody } from "@/lib/api-helpers";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
+import { memoryCache } from "@/lib/cache";
+import { clearSessionCache } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +130,8 @@ export async function PATCH(req: Request, { params }: Params) {
       link: isBuilderApproval ? "#/dashboard?tab=projects" : "#/dashboard",
     });
 
+    memoryCache.deletePrefix("admin:users");
+    clearSessionCache();
     return ok({ user: toAdminUserDTO(updated, projectCount) });
   });
 }

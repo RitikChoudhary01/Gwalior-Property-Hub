@@ -6,6 +6,7 @@ import { ok, fail, handle, parseBody, rateLimit, clientIp } from "@/lib/api-help
 import { leadInclude, toLeadDTO } from "@/lib/serializers";
 import { leadReference } from "@/lib/slug";
 import { notify, notifyAdmins, sendEmail } from "@/lib/notifications";
+import { memoryCache } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,10 @@ export async function GET(req: Request) {
     const user = await getSessionUser();
     if (!user) return fail("Sign in to view enquiries.", 401);
 
+    const cacheKey = `leads:${user.id}:${sp.toString()}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) return ok(cached);
+
     const where: Prisma.LeadWhereInput = {};
     if (status) where.status = status;
     if (propertyId) where.propertyId = propertyId;
@@ -155,9 +160,11 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    return ok({
+    const result = {
       data: leads.map(toLeadDTO),
       pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
-    });
+    };
+    memoryCache.set(cacheKey, result, 30_000);
+    return ok(result);
   });
 }
