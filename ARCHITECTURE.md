@@ -178,3 +178,4 @@ All business logic and security policies reside strictly on the server across 30
   - `BUILDER`: Can manage company profile, projects, and unit inventories.
   - `ADMIN`: Full access to moderation, financial records, audit logs, and user verification.
 - **Upload Hardening:** Multipart uploads validate MIME headers, file extensions, and inspect binary magic bytes (JPEG `FF D8`, PNG `89 50 4E 47`, WebP `RIFF...WEBP`).
+
