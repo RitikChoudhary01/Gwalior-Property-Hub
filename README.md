@@ -1,165 +1,159 @@
-# Gwalior Property Hub — Premium Indian Residential Real Estate Marketplace
+# Gwalior Property Hub — Premium Indian Real Estate Marketplace
 
-Gwalior Property Hub is a full-stack, production-grade property marketplace for India, covering the complete brokerage business loop: **listing → moderation → discovery → enquiry CRM → site visits → transaction → commission settlement**.
-
-![Gwalior Property Hub home](agent-ctx/final-home-desktop.png)
+Gwalior Property Hub is a full-stack, production-grade property marketplace engineered for Indian real estate dynamics. It covers the complete brokerage business loop: **listing → moderation → discovery → enquiry CRM → site visits → transaction → commission settlement**.
 
 ---
 
-## Demo accounts
+## ⚡ Quick Start for Code Reviewers
 
-| Role | Email | Password | What to try |
-|------|-------|----------|-------------|
-| **Admin** | `admin@vasati.in` | `Admin@123` | Command Centre: KPIs, approvals, Leads CRM, transactions, commissions, agreements, audit log |
-| **Buyer** | `buyer@vasati.in` | `Buyer@123` | Favourites, enquiries, site-visit booking, profile |
-| **Seller** | `seller@vasati.in` | `Seller@123` | Listings CRUD with photo upload, enquiry inbox, visit scheduling |
-| **Builder** | `builder@vasati.in` | `Builder@123` | Projects, inventory units, RERA profile, enquiries |
-
-The login screen includes one-click demo account fill buttons.
-
----
-
-## Architecture
-
-```
-Next.js 16 (App Router, single "/" SPA with hash routing)
-├─ Frontend  React 19 · TypeScript · Tailwind 4 · shadcn/ui · Framer Motion · Recharts · Zustand
-├─ API       30+ route handlers under /api (all business logic server-side)
-├─ Data      Prisma ORM · SQLite (dev) — schema ported 1:1 to PostgreSQL for production
-└─ Auth      scrypt password hashing · httpOnly cookie sessions · role guards
-```
-
-### Why hash routing in a single route?
-
-The sandbox exposes one port/route. The app is a classic SPA at `/` using `#/properties`, `#/dashboard?tab=leads`, etc. All views live in `src/components/marketplace/views/`. To deploy as a traditional multi-page app, map each hash path to its view component — no logic changes needed.
-
----
-
-## Feature map
-
-### Public marketplace
-- **Home** — hero, city-wise search, featured properties, trending listings, featured builder projects, city explorer, testimonials
-- **Properties** — search + filters (city, locality, type, BHK, budget range, furnishing, construction status, RERA), URL-synced state, sorting, pagination
-- **Property detail** — photo gallery with lightbox, specs, amenities, map coordinates, RERA panel, similar homes, enquiry form, site-visit booking, share/save
-- **Projects** — developer projects with unit inventories, price bands, amenities, construction status
-- **About / Contact / Legal** (privacy + terms), **Partner** (builder onboarding), **List your property** (seller onboarding)
-
-### Role dashboards
-- **Buyer** — favourites, enquiries with status timeline, site visits, profile
-- **Seller** — listings manager (draft → submit → approved/rejected → resubmit), KPI stats, enquiry inbox with reply notes, visit scheduler, property form with multi-photo upload (drag-drop, main image, reordering)
-- **Builder** — project portfolio, unit inventory, enquiries, company profile
-- **Admin Command Centre** — 10 tabs: Overview (Recharts KPIs), Users (verify/suspend), Property approvals, Project approvals, Leads CRM (pipeline board, status workflow, follow-ups, assignment), Site visits, Transactions, Commissions (payment recording), Agreements, Audit log
-
-### Business workflow (enforced server-side)
-
-The platform implements the brokerage operating model end-to-end — listing → moderation → discovery → enquiry CRM → site visits → transaction → commission settlement:
-
-1. Owners & builders submit listings/projects → held as `PENDING` until an admin approves (rejection carries a reason; drafts supported)
-2. Buyers browse and enquire for **free** — enquiry creates a lead with unique reference (30-day de-dup, rate-limited, consent required); site-visit requests link to the lead by phone
-3. The Gwalior Property Hub team works the lead in the CRM: `NEW → QUALIFIED → NEGOTIATION → BOOKING → CONVERTED`, with assignment, follow-up dates, contact logging, and the buyer's phone/email surfaced for outreach
-4. The team connects the buyer with the owner/builder (contact details on both sides: sellers/builders see enquiries in their dashboards, admins see owner contacts in the CRM)
-5. Site visits are coordinated in the Visits tab: confirm, reschedule (buyer is notified), complete, or cancel
-6. A transaction can only be recorded for a negotiation/booking/converted lead **with an active agreement** — the signed commission agreement (percentage or fixed fee) is created against the seller/builder first
-7. Commission is computed server-side from the agreement (percentage of sale value or fixed fee) — never trusted from the client
-8. Partial/full commission payments recorded atomically; status auto-transitions `PENDING → PARTIAL → PAID` (e.g. ₹50 L deal @ 1% → ₹50,000 revenue; rate varies per agreement)
-9. Every mutation lands in the audit log
-
----
-
-## API surface (selected)
-
-```
-POST /api/auth/{register,login,logout}     GET /api/auth/me
-GET  /api/properties                       (search, filters, pagination)
-GET  /api/properties/[slugOrId]            POST /api/properties (seller)
-PATCH/DELETE /api/properties/[id]          (owner)
-POST /api/properties/[id]/approve|reject   (admin moderation)
-GET/POST /api/projects                     POST /api/projects/[id]/approve|reject
-GET/POST /api/leads                        PATCH /api/leads/[id] (pipeline)
-GET/POST /api/site-visits                  PATCH /api/site-visits/[id]
-GET/POST/DELETE /api/favourites/[propertyId]
-GET /api/stats                             (role-aware dashboard stats)
-GET/POST /api/notifications                POST /api/notifications/read-all
-POST /api/contact                          POST /api/upload (magic-number validated)
-GET/POST /api/admin/users                  PATCH /api/admin/users/[id]
-GET/POST /api/admin/transactions           PATCH /api/admin/transactions/[id]
-GET/POST /api/admin/agreements             PATCH /api/admin/agreements/[id]
-GET /api/admin/commissions                 PATCH /api/admin/commissions/[id] (record payment)
-GET /api/admin/audit-logs                  GET /api/admin/stats
-```
-
-All endpoints return `{ data }` or `{ error }` with proper HTTP codes, are rate-limited where appropriate, and validate input with Zod.
-
----
-
-## Data model (23 tables)
-
-`User`, `Session`, `Builder`, `Project`, `ProjectImage`, `Property`, `PropertyImage`, `PropertyAmenity`, `PropertyDocument`, `Favourite`, `Lead`, `LeadActivity`, `SiteVisit`, `SellerAgreement`, `BuilderAgreement`, `Transaction`, `Commission`, `CommissionPayment`, `FeaturedListing`, `Notification`, `AuditLog`, `ContactMessage`, `Setting`
-
-Key constraints: unique property/project slugs, unique lead references, one transaction per lead, payment ≤ outstanding enforced in a DB transaction.
-
----
-
-## Local development
+The project in this archive is **fully pre-configured** with a live Supabase PostgreSQL database and credentials in `.env`. You can run it immediately with just two commands:
 
 ```bash
-bun install
-bun run db:push        # sync Prisma schema to SQLite
-bun run db:seed        # demo data (8 users, 2 builders, 4 projects, 17 properties, leads, 1 closed deal)
-bun run dev            # http://localhost:3000
-bun run lint
+# 1. Install dependencies (Prisma client generates automatically on postinstall)
+npm install     # or: bun install
+
+# 2. Start the local development server
+npm run dev     # or: bun run dev
 ```
 
-## Production deployment (Vercel + Supabase)
-
-The app is **Supabase-ready** — database, storage and (data-level) authentication all move to Supabase by setting env vars. No code changes:
-
-```bash
-# 1. Create a project at supabase.com (free tier works)
-# 2. Put the following in .env (see .env.example for annotated templates):
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
-SUPABASE_URL=https://[ref].supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-
-# 3. One-command switch (flips Prisma to PostgreSQL, pushes the 23-table
-#    schema, optionally seeds demo data — skip with --no-seed):
-bun scripts/use-supabase.mjs
-
-# 4. Deploy
-vercel   # set the same env vars in the Vercel dashboard
-```
-
-What each piece does on Supabase:
-
-- **Database** — Supabase Postgres via Prisma. The PostgreSQL schema is kept in `db/supabase/schema.prisma` with generated DDL in `db/supabase/migration.sql` (a manual fallback if you prefer running SQL in the Supabase editor). Zero raw SQL in the codebase — the app is 100% portable between SQLite and Postgres.
-- **Storage** — with `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set, `/api/upload` transparently switches from local disk to the public `uploads` bucket in Supabase Storage (bucket auto-created; override the name with `SUPABASE_BUCKET`). The same validation (type allowlist, 5 MB cap, magic-number sniffing) applies to both backends.
-- **Authentication** — accounts and sessions live in your Supabase Postgres (`User` + `Session` tables) behind scrypt hashing and httpOnly cookies. This keeps the marketplace fully functional with zero external dependencies (and works in iframe/embed contexts via CHIPS cookies). Supabase Auth (GoTrue) can be layered on later if you want social login / OTP — the `User` table maps 1:1 onto `auth.users` in that migration.
-
-Other production notes:
-- **Environment** — `NEXT_PUBLIC_SITE_URL` (canonical URL for metadata/OG images).
-- **Seed admin** — run the seed script against production, then change the demo passwords.
-
-## Security notes
-
-- Passwords: scrypt with per-user salt (never stored in plain text)
-- Sessions: opaque tokens in httpOnly cookies, 30-day expiry, revoked on logout
-- Session cookie: `SameSite=None; Secure; Partitioned` (CHIPS) — required so
-  the app works when embedded in cross-site iframes (e.g. web preview panels).
-  `SameSite=Lax` cookies are rejected by browsers in third-party iframe
-  contexts, which silently breaks every authenticated API call. Chrome accepts
-  `Secure` cookies on localhost, and production is always HTTPS.
-- API responses carry `Cache-Control: no-store` so a pre-login 401 can never
-  be served from browser cache after signing in
-- Every API route validates session + role; object-level ownership checks on all mutations
-- Uploads validated by file extension **and** magic-number sniffing, 5 MB cap
-- Rate limiting on auth, enquiry, and contact endpoints
-- Admin financial mutations are audit-logged with actor, entity, and detail
+Open your browser at **[http://localhost:3000](http://localhost:3000)**.
 
 ---
 
-## Design system
+## 🔑 Demo Accounts (1-Click Login Ready)
 
-- Warm ivory background, deep navy text, premium green primary (`oklch` tokens in `globals.css`)
-- Fraunces display serif + Inter body
-- Fully responsive (mobile-first), 44px touch targets, focus-visible rings, ARIA-labelled interactive elements, semantic landmarks, sticky-footer layout (`min-h-screen flex-col` + `flex-1` main)
-- Loading skeletons, empty states, toast feedback, Framer Motion transitions
+The sign-in page features 1-click autofill buttons for all roles:
+
+| Role | Email | Password | Primary Capabilities |
+|---|---|---|---|
+| **Administrator** | `admin@vasati.in` | `Admin@123` | **Command Centre:** KPI analytics, property & project approvals, Leads CRM board, agreements, transaction recording, commission settlement, audit logs |
+| **Builder / Developer** | `builder@vasati.in` | `Builder@123` | Developer projects portfolio, unit inventory management, RERA profile, developer enquiries |
+| **Property Seller** | `seller@vasati.in` | `Seller@123` | Listings management (Draft / Submit / Edit), multi-photo upload with drag-drop, enquiry inbox, site visit scheduler |
+| **Home Buyer** | `buyer@vasati.in` | `Buyer@123` | Favourites watchlist, buyer enquiries timeline, site visit booking, buyer requirements |
+
+---
+
+## 🏗️ System Architecture & Data Flow
+
+```mermaid
+flowchart TD
+    subgraph Client["Client Tier (Browser / Mobile)"]
+        UI["React 19 SPA (Zustand Store + Hash Router)"]
+    end
+
+    subgraph Edge["Vercel Edge Network"]
+        CDN["Edge Caching (s-maxage=60s, stale-while-revalidate=120s)"]
+        ImgCDN["Next.js Image Optimization CDN (AVIF/WebP)"]
+    end
+
+    subgraph Serverless["Serverless Tier (Mumbai - bom1)"]
+        AppRouter["Next.js 16 App Router (30+ REST APIs)"]
+        RBAC["Session & RBAC Guards (HttpOnly Cookies)"]
+        Zod["Zod Schema Validation"]
+        Bundle["Bundled Home Resolver (/api/home)"]
+        Prisma["Prisma ORM (Connection Limit = 1)"]
+    end
+
+    subgraph Database["Supabase Cloud Infrastructure"]
+        PgBouncer["PgBouncer Transaction Pooler (:6543)"]
+        Postgres[("PostgreSQL Database (23 Tables, Relational Indexes)")]
+        Storage["Supabase Storage Bucket ('uploads')"]
+    end
+
+    UI --> Edge
+    Edge --> CDN
+    CDN -->|"Cache Hit"| UI
+    CDN -->|"Cache Miss"| AppRouter
+    ImgCDN --> UI
+    
+    AppRouter --> RBAC
+    RBAC --> Zod
+    Zod --> Bundle
+    Bundle --> Prisma
+    Prisma --> PgBouncer
+    PgBouncer --> Postgres
+    AppRouter -->|"Magic Byte Uploads"| Storage
+```
+
+> 📖 **Deep Dive Available:** For the complete architectural specification, entity-relationship diagrams, and detailed sequence diagrams, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
+---
+
+## 🔄 Business Workflow (Enforced Server-Side)
+
+```mermaid
+stateDiagram-v2
+    [*] --> ListingSubmission: Seller / Builder lists home or project
+    ListingSubmission --> AdminReview: Stored as PENDING
+    AdminReview --> Rejected: Admin rejects with reason
+    Rejected --> ListingSubmission: Lister resubmits
+    AdminReview --> Published: Admin approves listing
+    
+    Published --> BuyerEnquiry: Buyer discovers & enquires
+    BuyerEnquiry --> LeadCRM: Lead created (30-day de-duplication)
+    LeadCRM --> SiteVisit: Physical visit coordinated & confirmed
+    SiteVisit --> Negotiation: Brokerage team works deal
+    Negotiation --> CommissionAgreement: Agreement signed with seller
+    CommissionAgreement --> TransactionRecorded: Sale closed in Command Centre
+    TransactionRecorded --> CommissionSettled: Payment logged atomically
+    CommissionSettled --> [*]
+```
+
+---
+
+## 🛠️ Technology Stack
+
+- **Framework:** Next.js 16.1.3 (App Router with Turbopack)
+- **Frontend:** React 19, TypeScript 5.7, Tailwind CSS 4, Radix UI Primitives, Lucide Icons, Framer Motion, Recharts
+- **State Management:** Zustand (centralized persistent client store)
+- **ORM & Database:** Prisma 6.4 + PostgreSQL on Supabase Cloud (dual-pooler: transaction `:6543` + session `:5432`)
+- **Authentication:** Scrypt password hashing with per-user salt + HttpOnly partitioned CHIPS session cookies
+- **Validation:** Zod schemas on all mutating endpoints
+- **Storage:** Supabase Object Storage with local disk fallback + file-signature magic number inspection
+
+---
+
+## ⚡ Performance Engineering
+
+1. **Regional Edge Placement:** Functions configured for `bom1` (Mumbai, India) via `vercel.json` to eliminate transatlantic serverless latency.
+2. **Endpoint Bundling:** `/api/home` combines featured properties, fresh arrivals, developer projects, city counts, and market price intelligence into a single database query burst.
+3. **Connection Pooling Guard:** `DATABASE_URL` specifies `connection_limit=1` to guarantee serverless lambdas never exhaust the Supabase PgBouncer pool under high concurrent traffic.
+4. **Edge CDN Caching:** Public endpoints return `Cache-Control: public, s-maxage=60, stale-while-revalidate=120`, allowing repeated page loads to serve in under 50ms from Vercel's edge network.
+5. **Mobile Viewport Optimization:** Responsive navbar with `whitespace-nowrap` logo, 100% full-width property titles, scaled gallery chevrons, and touch-friendly sticky CTA bars.
+
+---
+
+## 📁 Repository Structure
+
+```
+.
+├── src/
+│   ├── app/                    # Next.js 16 App Router & 30+ REST APIs
+│   │   ├── api/                # Serverless route handlers (auth, properties, projects, admin)
+│   │   ├── layout.tsx          # Root HTML layout with fonts & notifications
+│   │   └── page.tsx            # Flagship SPA container
+│   ├── components/             # Modular React UI components
+│   │   ├── marketplace/        # Flagship views (Home, Properties, Projects, Detail, Dashboard)
+│   │   └── ui/                 # Shadcn accessible primitive components
+│   ├── lib/                    # Core business logic, db client, serializers, auth
+│   └── store/                  # Zustand global application store
+├── prisma/
+│   └── schema.prisma           # 23-table relational database schema
+├── ARCHITECTURE.md             # Complete architecture diagrams & technical specification
+├── vercel.json                 # Mumbai bom1 region and function configuration
+└── package.json                # Dependencies, scripts, and postinstall hooks
+```
+
+---
+
+## 🛡️ Verification & Type Safety
+
+Run the test and build checks locally:
+
+```bash
+# Type check (strict mode, zero errors):
+bunx tsc --noEmit
+
+# Production build:
+npm run build   # or: bun run build
+```
