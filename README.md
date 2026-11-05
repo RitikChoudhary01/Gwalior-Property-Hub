@@ -2,6 +2,9 @@
 
 Gwalior Property Hub is a full-stack, production-grade property marketplace engineered for Indian real estate dynamics. It covers the complete brokerage business loop: **listing → moderation → discovery → enquiry CRM → site visits → transaction → commission settlement**.
 
+> 📚 **Complete Project & Flowchart Guide:**  
+> If you are reviewing or presenting this project, open **[PROJECT_GUIDE_AND_FLOWCHARTS.md](./PROJECT_GUIDE_AND_FLOWCHARTS.md)** for a beginner-friendly visual guide with Mermaid flowcharts, role journeys, screen maps, and architectural breakdown.
+
 ---
 
 ## ⚡ Quick Start for Code Reviewers
