@@ -313,9 +313,9 @@ function ProjectDetailBody({ project }: { project: ProjectDetailDTO }) {
     : "";
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-6 pb-20 sm:px-6 lg:px-8 lg:py-10">
+    <section className="mx-auto max-w-7xl px-4 py-4 pb-20 sm:px-6 sm:py-6 lg:px-8 lg:py-10">
       {/* Top Navigation Row: Back button & Breadcrumb */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => {
@@ -325,10 +325,10 @@ function ProjectDetailBody({ project }: { project: ProjectDetailDTO }) {
               navigate("/projects");
             }
           }}
-          className="group inline-flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
           aria-label="Back to projects list"
         >
-          <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
+          <ArrowLeft className="size-3.5 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary sm:size-4" aria-hidden="true" />
           <span>Back to projects</span>
         </button>
 
@@ -358,7 +358,7 @@ function ProjectDetailBody({ project }: { project: ProjectDetailDTO }) {
           </p>
           <VerifiedBadge verified={project.builderVerified} label="Verified Builder" />
         </div>
-        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+        <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
           {project.name}
         </h1>
         <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">

@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 /** Gwalior Property Hub brand mark — an arch over a foundation line. */
 export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
-    <span className={cn("inline-flex items-center gap-2.5 select-none", className)}>
-      <span className="relative grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <span className={cn("inline-flex items-center gap-2 sm:gap-2.5 select-none shrink-0", className)}>
+      <span className="relative grid size-8 sm:size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm shrink-0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="sm:size-5">
           <path
             d="M4 11.5 12 4l8 7.5"
             stroke="currentColor"
@@ -26,9 +26,10 @@ export function Logo({ className, compact = false }: { className?: string; compa
         </svg>
       </span>
       {!compact && (
-        <span className="font-display text-[1.35rem] font-semibold tracking-tight text-foreground">
-          Gwalior{" "}
-          <span className="font-normal text-foreground/60">Property Hub</span>
+        <span className="font-display text-sm sm:text-[1.35rem] font-semibold tracking-tight text-foreground whitespace-nowrap">
+          <span className="hidden sm:inline">Gwalior </span>
+          <span>Property</span>
+          <span className="font-normal text-foreground/60 hidden min-[360px]:inline"> Hub</span>
         </span>
       )}
     </span>

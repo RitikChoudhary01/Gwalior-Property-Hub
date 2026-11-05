@@ -69,8 +69,8 @@ export function ImageGallery({ images, title }: { images: GalleryImage[]; title:
           <img src={main.url} alt={main.caption ?? title} className="size-full object-cover" />
         </button>
 
-        <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-stone-900/60 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-          <ZoomIn className="size-3.5" aria-hidden="true" />
+        <span className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-stone-900/60 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur sm:right-3 sm:top-3 sm:px-3 sm:py-1 sm:text-xs">
+          <ZoomIn className="size-3 sm:size-3.5" aria-hidden="true" />
           {active + 1} / {images.length}
         </span>
 
@@ -80,17 +80,17 @@ export function ImageGallery({ images, title }: { images: GalleryImage[]; title:
               type="button"
               aria-label="Previous photo"
               onClick={() => setActive((a) => step(-1, images.length, a))}
-              className="absolute left-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-stone-800 shadow transition hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+              className="absolute left-2 top-1/2 grid size-7.5 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white shadow backdrop-blur transition hover:bg-black/60 sm:left-3 sm:size-9 sm:bg-white/85 sm:text-stone-800 sm:hover:bg-white md:opacity-0 md:group-hover:opacity-100"
             >
-              <ChevronLeft className="size-5" aria-hidden="true" />
+              <ChevronLeft className="size-4 sm:size-5" aria-hidden="true" />
             </button>
             <button
               type="button"
               aria-label="Next photo"
               onClick={() => setActive((a) => step(1, images.length, a))}
-              className="absolute right-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-stone-800 shadow transition hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+              className="absolute right-2 top-1/2 grid size-7.5 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white shadow backdrop-blur transition hover:bg-black/60 sm:right-3 sm:size-9 sm:bg-white/85 sm:text-stone-800 sm:hover:bg-white md:opacity-0 md:group-hover:opacity-100"
             >
-              <ChevronRight className="size-5" aria-hidden="true" />
+              <ChevronRight className="size-4 sm:size-5" aria-hidden="true" />
             </button>
           </>
         )}
@@ -113,7 +113,7 @@ export function ImageGallery({ images, title }: { images: GalleryImage[]; title:
               aria-label={`View photo ${i + 1}`}
               onClick={() => setActive(i)}
               className={cn(
-                "relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border-2 transition-all sm:h-[4.5rem] sm:w-28",
+                "relative h-14 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all sm:h-[4.5rem] sm:w-28",
                 i === active ? "border-primary" : "border-transparent opacity-75 hover:opacity-100"
               )}
             >

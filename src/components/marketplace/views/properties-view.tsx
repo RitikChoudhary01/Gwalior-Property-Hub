@@ -662,9 +662,9 @@ export function PropertiesView() {
     : "Homes for sale";
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8" aria-label="Search properties">
+    <section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-8 lg:px-8" aria-label="Search properties">
       {/* Top back navigation */}
-      <div className="mb-4 flex items-center">
+      <div className="mb-3 sm:mb-4 flex items-center">
         <button
           type="button"
           onClick={() => {
@@ -674,32 +674,32 @@ export function PropertiesView() {
               navigate("/");
             }
           }}
-          className="group inline-flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
+          className="group inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
           aria-label="Back to home"
         >
-          <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
+          <ArrowLeft className="size-3.5 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary sm:size-4" aria-hidden="true" />
           <span>Back to Home</span>
         </button>
       </div>
 
       {/* Header row */}
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">
             {heading}
           </h1>
           {hasFilters && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
               {activeFilters.map((chip) => (
                 <button
                   key={chip.label}
                   type="button"
                   onClick={chip.remove}
-                  className="group inline-flex min-h-9 items-center gap-1.5 rounded-full border bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-primary/50 hover:text-primary"
+                  className="group inline-flex min-h-8 items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-primary/50 hover:text-primary"
                 >
                   {chip.label}
                   <X
-                    className="size-3.5 text-muted-foreground transition-colors group-hover:text-primary"
+                    className="size-3 text-muted-foreground transition-colors group-hover:text-primary"
                     aria-hidden="true"
                   />
                   <span className="sr-only">Remove filter</span>
@@ -708,7 +708,7 @@ export function PropertiesView() {
               <button
                 type="button"
                 onClick={clearAll}
-                className="ml-1 inline-flex min-h-9 items-center text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                className="ml-1 inline-flex min-h-8 items-center text-xs font-semibold text-primary underline-offset-4 hover:underline"
               >
                 Clear all
               </button>
@@ -716,10 +716,10 @@ export function PropertiesView() {
           )}
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-44 sm:w-52">
+        <div className="flex items-center gap-2">
+          <div className="w-36 sm:w-52">
             <Select value={sort} onValueChange={(v) => applyFilters({ sort: v === "recent" ? null : v })}>
-              <SelectTrigger className="w-full" aria-label="Sort results">
+              <SelectTrigger className="w-full h-9 text-xs sm:text-sm" aria-label="Sort results">
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
@@ -731,11 +731,11 @@ export function PropertiesView() {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" className="gap-2 lg:hidden" onClick={() => setFiltersOpen(true)}>
-            <SlidersHorizontal className="size-4" aria-hidden="true" />
-            Filters
+          <Button variant="outline" size="sm" className="h-9 gap-1.5 lg:hidden text-xs sm:text-sm" onClick={() => setFiltersOpen(true)}>
+            <SlidersHorizontal className="size-3.5 sm:size-4" aria-hidden="true" />
+            <span>Filters</span>
             {hasFilters && (
-              <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+              <span className="grid size-4.5 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
                 {activeFilters.length}
               </span>
             )}

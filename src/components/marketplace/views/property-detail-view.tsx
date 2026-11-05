@@ -291,110 +291,58 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-10 lg:pb-12">
-      {/* Top Navigation Row: Back button & Breadcrumb */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            if (typeof window !== "undefined" && window.history.length > 1) {
-              window.history.back();
-            } else {
-              navigate("/properties");
-            }
-          }}
-          className="group inline-flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
-          aria-label="Back to properties list"
-        >
-          <ArrowLeft className="size-4 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary" aria-hidden="true" />
-          <span>Back to properties</span>
-        </button>
+    <section className="mx-auto max-w-7xl px-4 py-4 pb-24 sm:px-6 sm:py-6 lg:px-8 lg:py-10 lg:pb-12">
+      {/* Top Navigation Row: Back button & Breadcrumb & Action buttons */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                window.history.back();
+              } else {
+                navigate("/properties");
+              }
+            }}
+            className="group inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 sm:text-sm"
+            aria-label="Back to properties list"
+          >
+            <ArrowLeft className="size-3.5 transition-transform duration-200 group-hover:-translate-x-0.5 text-primary sm:size-4" aria-hidden="true" />
+            <span>Back to properties</span>
+          </button>
 
-        {/* Breadcrumb */}
-        <Breadcrumb className="hidden sm:block">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <CrumbLink href="/">Home</CrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <CrumbLink href="/properties">Properties</CrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <CrumbLink href={`/properties?city=${encodeURIComponent(property.city)}`}>
-                {property.city}
-              </CrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem className="max-w-[10rem] sm:max-w-[16rem]">
-              <BreadcrumbPage className="truncate">{property.title}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
-
-      {/* Title row */}
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {property.title}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <p className="font-display text-xl font-semibold text-primary sm:text-2xl">
-              {formatPrice(property.price)}
-            </p>
-            {property.negotiable && <Badge variant="secondary">Negotiable</Badge>}
-            {/* Live price context vs the locality — computed from real
-                published listings, shown only when the comparison is honest. */}
-            {property.localityInsights?.vsLocalityPct != null &&
-              Math.abs(property.localityInsights.vsLocalityPct) >= 5 &&
-              property.localityInsights.vsLocalityPct <= 0 && (
-                <Badge className="gap-1 border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                  <TrendingDown className="size-3" aria-hidden="true" />
-                  {formatSignedPct(property.localityInsights.vsLocalityPct)} vs locality avg
-                </Badge>
-              )}
-          </div>
-          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="size-4 shrink-0" aria-hidden="true" />
-            {property.locality}, {property.city}, {property.state}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <Badge variant="outline">{property.type}</Badge>
-            <Badge variant="outline">{constructionLabel}</Badge>
-            <StatusBadge
-              status={property.availability}
-              className={sold ? "px-3 py-1 text-xs" : undefined}
-            />
-            {/* Listing-level legal verification — only shown when Gwalior Property Hub
-                actually completed document verification for this listing. */}
-            {property.verificationStatus === "VERIFIED" && <ListingVerifiedBadge />}
-            {property.featured && (
-              <Badge className="border border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-100">
-                Featured
-              </Badge>
-            )}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Eye className="size-3.5" aria-hidden="true" />
-              {formatNumber(property.views)} views
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="size-3.5" aria-hidden="true" />
-              Listed on {formatDate(property.createdAt)}
-            </span>
-          </div>
+          {/* Breadcrumb (desktop only) */}
+          <Breadcrumb className="hidden sm:block">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <CrumbLink href="/">Home</CrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <CrumbLink href="/properties">Properties</CrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <CrumbLink href={`/properties?city=${encodeURIComponent(property.city)}`}>
+                  {property.city}
+                </CrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="max-w-[10rem] sm:max-w-[16rem]">
+                <BreadcrumbPage className="truncate">{property.title}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Share and Favourite actions */}
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="icon"
             onClick={share}
             aria-label="Share this property"
-            className="shadow-sm"
+            className="size-8.5 shadow-sm sm:size-9"
           >
             <Share2 className="size-4" aria-hidden="true" />
           </Button>
@@ -404,13 +352,63 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
             onClick={onFavourite}
             aria-label={isFav ? "Remove from favourites" : "Save to favourites"}
             aria-pressed={isFav}
-            className="shadow-sm"
+            className="size-8.5 shadow-sm sm:size-9"
           >
             <Heart
               className={cn("size-4 transition-colors", isFav && "fill-rose-500 text-rose-500")}
               aria-hidden="true"
             />
           </Button>
+        </div>
+      </div>
+
+      {/* Title row */}
+      <div className="mt-4">
+        <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight text-foreground leading-snug">
+          {property.title}
+        </h1>
+        <div className="mt-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
+          <p className="font-display text-2xl font-bold text-primary sm:text-3xl">
+            {formatPrice(property.price)}
+          </p>
+          {property.negotiable && <Badge variant="secondary" className="text-xs">Negotiable</Badge>}
+          {/* Live price context vs the locality */}
+          {property.localityInsights?.vsLocalityPct != null &&
+            Math.abs(property.localityInsights.vsLocalityPct) >= 5 &&
+            property.localityInsights.vsLocalityPct <= 0 && (
+              <Badge className="gap-1 border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-xs">
+                <TrendingDown className="size-3" aria-hidden="true" />
+                {formatSignedPct(property.localityInsights.vsLocalityPct)} vs locality avg
+              </Badge>
+            )}
+        </div>
+        <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <MapPin className="size-4 shrink-0 text-primary/70" aria-hidden="true" />
+          <span>{property.locality}, {property.city}, {property.state}</span>
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline">{property.type}</Badge>
+          <Badge variant="outline">{constructionLabel}</Badge>
+          <StatusBadge
+            status={property.availability}
+            className={sold ? "px-3 py-1 text-xs" : undefined}
+          />
+          {property.verificationStatus === "VERIFIED" && <ListingVerifiedBadge />}
+          {property.featured && (
+            <Badge className="border border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-100">
+              Featured
+            </Badge>
+          )}
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Eye className="size-3.5" aria-hidden="true" />
+            {formatNumber(property.views)} views
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDays className="size-3.5" aria-hidden="true" />
+            Listed on {formatDate(property.createdAt)}
+          </span>
         </div>
       </div>
 
@@ -740,27 +738,27 @@ function PropertyDetailBody({ property }: { property: PropertyDetailDTO }) {
       {!sold && (
         <aside
           aria-label="Quick mobile booking actions"
-          className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/80 bg-background/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden"
+          className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/80 bg-background/95 px-3 py-2.5 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden sm:px-4 sm:py-3"
         >
-          <div className="mx-auto flex max-w-md items-center justify-between gap-3">
+          <div className="mx-auto flex max-w-md items-center justify-between gap-2 sm:gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground">Asking Price</p>
-              <p className="truncate font-display text-lg font-bold text-primary">
+              <p className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Price</p>
+              <p className="truncate font-display text-base sm:text-lg font-bold text-primary">
                 {formatPrice(property.price)}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               {waUrl && (
-                <Button asChild size="sm" variant="outline" className="h-9 gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+                <Button asChild size="sm" variant="outline" className="h-8.5 sm:h-9 px-2.5 sm:px-3 gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm">
                   <a href={waUrl} target="_blank" rel="noopener noreferrer">
-                    <MessageCircle className="size-4" aria-hidden="true" />
+                    <MessageCircle className="size-3.5 sm:size-4" aria-hidden="true" />
                     <span>WhatsApp</span>
                   </a>
                 </Button>
               )}
               <VisitDialog property={property}>
-                <Button size="sm" className="h-9 gap-1.5 font-semibold">
-                  <CalendarCheck className="size-4" aria-hidden="true" />
+                <Button size="sm" className="h-8.5 sm:h-9 px-3 sm:px-4 gap-1.5 text-xs sm:text-sm font-semibold">
+                  <CalendarCheck className="size-3.5 sm:size-4" aria-hidden="true" />
                   <span>Book Visit</span>
                 </Button>
               </VisitDialog>

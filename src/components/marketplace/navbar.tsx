@@ -55,8 +55,8 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
           {route.path !== "/" && (
             <button
               type="button"
@@ -67,10 +67,10 @@ export function Navbar() {
                   navigate("/");
                 }
               }}
-              className="grid size-9 place-items-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-2xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 lg:hidden"
+              className="grid size-8 sm:size-9 shrink-0 place-items-center rounded-lg border border-border/70 bg-background text-muted-foreground shadow-2xs transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground active:scale-95 lg:hidden"
               aria-label="Go back"
             >
-              <ArrowLeft className="size-4.5" aria-hidden="true" />
+              <ArrowLeft className="size-4" aria-hidden="true" />
             </button>
           )}
           <a
@@ -80,6 +80,7 @@ export function Navbar() {
               e.preventDefault();
               navigate("/");
             }}
+            className="shrink-0"
           >
             <Logo />
           </a>
@@ -107,12 +108,12 @@ export function Navbar() {
         </nav>
 
         {/* Right actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Mobile menu */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="order-last lg:hidden" aria-label="Open menu">
-                <Menu className="size-5" aria-hidden="true" />
+              <Button variant="ghost" size="icon" className="size-8 sm:size-9 order-last shrink-0 lg:hidden" aria-label="Open menu">
+                <Menu className="size-4.5 sm:size-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
@@ -282,9 +283,14 @@ export function Navbar() {
               >
                 Sign in
               </Button>
-              <Button onClick={() => navigate("/list-property")} className="gap-1.5">
-                <Plus className="size-4" aria-hidden="true" />
-                <span className="hidden sm:inline">List your</span> property
+              <Button
+                size="sm"
+                onClick={() => navigate("/list-property")}
+                className="h-8 gap-1 px-2.5 text-xs font-medium sm:h-9 sm:gap-1.5 sm:px-3 sm:text-sm shrink-0"
+              >
+                <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
+                <span className="hidden sm:inline">List your </span>
+                <span>property</span>
               </Button>
             </>
           )}
