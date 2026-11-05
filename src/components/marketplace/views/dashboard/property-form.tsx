@@ -24,7 +24,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { api, uploadFile } from "@/lib/api-client";
+import { api, uploadFile, ApiError } from "@/lib/api-client";
 import { formatPriceFull } from "@/lib/format";
 import {
   AMENITIES,
@@ -66,6 +66,12 @@ import { Textarea } from "@/components/ui/textarea";
 const MAX_PHOTOS = 12;
 const MAX_FILE_MB = 5;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+function isAcceptedPhoto(file: File): boolean {
+  if (file.type && ACCEPTED_TYPES.includes(file.type.toLowerCase())) return true;
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  return ext === ".jpg" || ext === ".jpeg" || ext === ".png" || ext === ".webp";
+}
 
 const FACING_OPTIONS = [
   "North",
@@ -396,7 +402,7 @@ export function PropertyForm({
         toast.error(`You can upload up to ${MAX_PHOTOS} photos.`);
         break;
       }
-      if (!ACCEPTED_TYPES.includes(file.type)) {
+      if (!isAcceptedPhoto(file)) {
         toast.error(`${file.name}: only JPEG, PNG or WebP photos are allowed.`);
         continue;
       }
@@ -414,9 +420,10 @@ export function PropertyForm({
         });
         setImages((imgs) => [...imgs, { url: res.url }]);
         setUploads((u) => u.filter((x) => x.id !== id));
-      } catch {
+      } catch (err) {
         setUploads((u) => u.filter((x) => x.id !== id));
-        toast.error(`${file.name}: upload failed. Please try again.`);
+        const message = err instanceof ApiError ? err.message : "upload failed. Please try again.";
+        toast.error(`${file.name}: ${message}`);
       }
     }
   }
@@ -564,7 +571,7 @@ export function PropertyForm({
   // ---------- render ----------
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full max-h-[90vh] overflow-hidden">
       <DialogHeader className="shrink-0 border-b px-6 py-4 text-left">
         <DialogTitle className="font-display text-lg font-semibold tracking-tight">
           {isEdit ? "Edit listing" : "List a new property"}
@@ -576,7 +583,7 @@ export function PropertyForm({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="gph-scroll max-h-[75vh] space-y-8 overflow-y-auto px-6 py-5">
+      <div className="gph-scroll flex-1 min-h-0 space-y-8 overflow-y-auto px-6 py-5">
         {/* ---------------- Listing strength (sticky meter) ---------------- */}
         <div className="sticky top-0 z-20 -mx-6 border-b bg-background/95 px-6 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
@@ -1244,8 +1251,8 @@ export function PropertyForm({
         </FormSection>
       </div>
 
-      {/* ---------------- Sticky footer ---------------- */}
-      <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+      {/* ---------------- Fixed footer ---------------- */}
+      <div className="shrink-0 flex flex-col-reverse gap-2 border-t bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
         {uploadingCount > 0 && (
           <p className="mr-auto text-xs text-muted-foreground">
             Uploading {uploadingCount} photo{uploadingCount === 1 ? "" : "s"} — please wait…

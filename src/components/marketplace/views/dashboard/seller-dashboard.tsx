@@ -1360,7 +1360,7 @@ export function SellerDashboard({ initialTab }: { initialTab?: string }) {
 
       {/* Create / edit listing dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="gap-0 p-0 sm:max-w-3xl">
+        <DialogContent className="flex max-h-[90vh] sm:max-w-3xl flex-col gap-0 overflow-hidden p-0">
           <PropertyForm
             key={formProperty?.id ?? "new"}
             property={formProperty}

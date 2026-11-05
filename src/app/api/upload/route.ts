@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
 };
@@ -30,6 +31,13 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/$/, "");
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || "uploads";
+
+// Supabase service keys are JWTs starting with "ey". If placeholder or empty, do not attempt remote call.
+const isRealSupabaseKey =
+  Boolean(SUPABASE_KEY) &&
+  !SUPABASE_KEY!.includes("PASTE_YOUR") &&
+  !SUPABASE_KEY!.includes("your-service-role-key") &&
+  SUPABASE_KEY!.startsWith("ey");
 
 async function supabaseUpload(bytes: Buffer, contentType: string, name: string): Promise<string> {
   const headers = {
@@ -65,23 +73,39 @@ export async function POST(req: Request) {
     const file = form.get("file");
     if (!(file instanceof File)) return fail("No file provided.", 422);
 
-    const ext = ALLOWED_TYPES[file.type];
+    const mime = (file.type || "").toLowerCase().split(";")[0].trim();
+    let ext = ALLOWED_TYPES[mime];
+    if (!ext) {
+      const fileNameExt = path.extname(file.name || "").toLowerCase();
+      if (fileNameExt === ".jpg" || fileNameExt === ".jpeg") ext = ".jpg";
+      else if (fileNameExt === ".png") ext = ".png";
+      else if (fileNameExt === ".webp") ext = ".webp";
+    }
     if (!ext) return fail("Only JPEG, PNG or WebP images are allowed.", 415);
     if (file.size > MAX_SIZE) return fail("File is too large. Maximum size is 5 MB.", 413);
-    if (file.size < 1024) return fail("File appears to be empty or corrupted.", 422);
+    if (file.size < 100) return fail("File appears to be empty or corrupted.", 422);
 
     const bytes = Buffer.from(await file.arrayBuffer());
     // basic magic-number validation
-    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8;
-    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
-    const isWebp = bytes.slice(8, 12).toString("ascii") === "WEBP";
-    if (!isJpeg && !isPng && !isWebp) return fail("File content does not match an allowed image type.", 415);
+    const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8;
+    const isPng = bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const isWebp =
+      bytes.length >= 12 &&
+      (bytes.slice(0, 4).toString("ascii") === "RIFF" || bytes.slice(8, 12).toString("ascii") === "WEBP");
+
+    if (!isJpeg && !isPng && !isWebp) {
+      const headerStr = bytes.slice(0, 32).toString("ascii");
+      const looksLikeImage = headerStr.includes("WEBP") || headerStr.includes("JFIF") || headerStr.includes("PNG");
+      if (!looksLikeImage) {
+        return fail("File content does not match an allowed image type.", 415);
+      }
+    }
 
     const name = `${randomUUID()}${ext}`;
 
-    if (SUPABASE_URL && SUPABASE_KEY) {
+    if (SUPABASE_URL && isRealSupabaseKey) {
       try {
-        const url = await supabaseUpload(bytes, file.type, name);
+        const url = await supabaseUpload(bytes, mime || "image/jpeg", name);
         return ok({ url, name: file.name }, 201);
       } catch (err) {
         console.warn("Supabase upload failed, safely falling back to local storage:", err);
