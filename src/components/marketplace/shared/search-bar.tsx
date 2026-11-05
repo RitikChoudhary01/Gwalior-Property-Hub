@@ -99,6 +99,11 @@ export function SearchBar({ className }: { className?: string }) {
             </SelectTrigger>
             <SelectContent className="max-h-72">
               <SelectItem value={ANY}>Any city</SelectItem>
+              {city && city !== ANY && !CITIES.some((c) => c.city.toLowerCase() === city.toLowerCase()) && (
+                <SelectItem value={city}>
+                  {city}
+                </SelectItem>
+              )}
               {CITIES.map((c) => (
                 <SelectItem key={c.city} value={c.city}>
                   {c.city}
@@ -123,6 +128,11 @@ export function SearchBar({ className }: { className?: string }) {
             </SelectTrigger>
             <SelectContent className="max-h-72">
               <SelectItem value={ANY}>Any locality</SelectItem>
+              {locality && locality !== ANY && !localities.includes(locality) && (
+                <SelectItem value={locality}>
+                  {locality}
+                </SelectItem>
+              )}
               {localities.map((l) => (
                 <SelectItem key={l} value={l}>
                   {l}

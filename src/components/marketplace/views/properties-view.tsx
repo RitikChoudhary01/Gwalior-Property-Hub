@@ -168,6 +168,11 @@ function FilterPanel({ onApplied }: { onApplied?: () => void }) {
           </SelectTrigger>
           <SelectContent className="max-h-72">
             <SelectItem value={ANY}>Any city</SelectItem>
+            {draft.city && draft.city !== ANY && !CITIES.some((c) => c.city.toLowerCase() === draft.city.toLowerCase()) && (
+              <SelectItem value={draft.city}>
+                {draft.city}
+              </SelectItem>
+            )}
             {CITIES.map((c) => (
               <SelectItem key={c.city} value={c.city}>
                 {c.city}
@@ -192,6 +197,11 @@ function FilterPanel({ onApplied }: { onApplied?: () => void }) {
           </SelectTrigger>
           <SelectContent className="max-h-72">
             <SelectItem value={ANY}>Any locality</SelectItem>
+            {draft.locality && draft.locality !== ANY && !localities.includes(draft.locality) && (
+              <SelectItem value={draft.locality}>
+                {draft.locality}
+              </SelectItem>
+            )}
             {localities.map((l) => (
               <SelectItem key={l} value={l}>
                 {l}

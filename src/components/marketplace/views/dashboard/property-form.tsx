@@ -107,6 +107,7 @@ interface FormState {
   price: string;
   negotiable: boolean;
   city: string;
+  state: string;
   locality: string;
   address: string;
   latitude: string;
@@ -321,6 +322,7 @@ export function PropertyForm({
     price: property ? String(property.price) : "",
     negotiable: property?.negotiable ?? false,
     city: property?.city ?? "",
+    state: property?.state ?? "",
     locality: property?.locality ?? "",
     address: property?.address ?? "",
     latitude: property?.latitude != null ? String(property.latitude) : "",
@@ -360,6 +362,16 @@ export function PropertyForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<SubmitKind | null>(null);
+
+  const [isCustomCity, setIsCustomCity] = useState<boolean>(() => {
+    if (!property?.city) return false;
+    return !CITIES.some((c) => c.city.toLowerCase() === property.city.toLowerCase());
+  });
+  const [isCustomLocality, setIsCustomLocality] = useState<boolean>(() => {
+    if (!property?.locality) return false;
+    const matched = CITIES.find((c) => c.city.toLowerCase() === (property.city || "").toLowerCase());
+    return !matched || !matched.localities.includes(property.locality);
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -505,9 +517,9 @@ export function PropertyForm({
       type: form.type,
       price: Number(form.price.trim()),
       negotiable: form.negotiable,
-      city: form.city,
-      state: cityEntry?.state ?? "",
-      locality: form.locality,
+      city: form.city.trim(),
+      state: cityEntry?.state || form.state.trim() || "",
+      locality: form.locality.trim(),
       address: form.address.trim(),
       latitude: toNum(form.latitude),
       longitude: toNum(form.longitude),
@@ -756,55 +768,131 @@ export function PropertyForm({
         <FormSection title="Location" description="Where the property is located.">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="prop-city">City</Label>
-              <Select
-                value={form.city}
-                onValueChange={(city) => {
-                  const entry = CITIES.find((c) => c.city === city);
-                  setForm((f) => ({
-                    ...f,
-                    city,
-                    locality: entry?.localities.includes(f.locality) ? f.locality : "",
-                  }));
-                }}
-              >
-                <SelectTrigger id="prop-city" className="w-full" aria-invalid={!!errors.city}>
-                  <SelectValue placeholder="Select city" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CITIES.map((c) => (
-                    <SelectItem key={c.city} value={c.city}>
-                      {c.city}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="prop-city">City</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isCustomCity;
+                    setIsCustomCity(next);
+                    if (next) {
+                      setForm((f) => ({ ...f, city: "", locality: "" }));
+                    }
+                  }}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  {isCustomCity ? "Choose from list" : "+ Other city"}
+                </button>
+              </div>
+
+              {isCustomCity ? (
+                <Input
+                  id="prop-city"
+                  value={form.city}
+                  onChange={(e) => setField("city", e.target.value)}
+                  placeholder="Enter city (e.g. Morena, Shivpuri, Bhind, Datia)"
+                  aria-invalid={!!errors.city}
+                />
+              ) : (
+                <Select
+                  value={form.city}
+                  onValueChange={(city) => {
+                    if (city === "__OTHER__") {
+                      setIsCustomCity(true);
+                      setForm((f) => ({ ...f, city: "", locality: "" }));
+                      return;
+                    }
+                    const entry = CITIES.find((c) => c.city === city);
+                    setForm((f) => ({
+                      ...f,
+                      city,
+                      state: entry?.state ?? f.state,
+                      locality: entry?.localities.includes(f.locality) ? f.locality : "",
+                    }));
+                  }}
+                >
+                  <SelectTrigger id="prop-city" className="w-full" aria-invalid={!!errors.city}>
+                    <SelectValue placeholder="Select city" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {CITIES.map((c) => (
+                      <SelectItem key={c.city} value={c.city}>
+                        {c.city} ({c.state})
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__OTHER__" className="font-medium text-primary">
+                      + Other city / Not in list
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  </SelectContent>
+                </Select>
+              )}
               <FieldError message={errors.city} />
             </div>
 
             <div className="grid gap-1.5">
               <Label htmlFor="prop-state">State</Label>
-              <Input id="prop-state" readOnly value={cityEntry?.state ?? ""} placeholder="Auto-filled from city" />
+              {isCustomCity ? (
+                <Input
+                  id="prop-state"
+                  value={form.state}
+                  onChange={(e) => setField("state", e.target.value)}
+                  placeholder="e.g. Madhya Pradesh, Uttar Pradesh"
+                />
+              ) : (
+                <Input id="prop-state" readOnly value={cityEntry?.state ?? form.state ?? ""} placeholder="Auto-filled from city" />
+              )}
             </div>
 
-            <div className="grid gap-1.5">
-              <Label htmlFor="prop-locality">Locality</Label>
-              <Select
-                value={form.locality}
-                onValueChange={(v) => setField("locality", v)}
-                disabled={!form.city}
-              >
-                <SelectTrigger id="prop-locality" className="w-full" aria-invalid={!!errors.locality}>
-                  <SelectValue placeholder={form.city ? "Select locality" : "Select a city first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(cityEntry?.localities ?? []).map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {l}
+            <div className="grid gap-1.5 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="prop-locality">Locality / Area</Label>
+                {!isCustomCity && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomLocality(!isCustomLocality)}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {isCustomLocality ? "Choose from list" : "+ Type custom locality"}
+                  </button>
+                )}
+              </div>
+
+              {isCustomCity || isCustomLocality ? (
+                <Input
+                  id="prop-locality"
+                  value={form.locality}
+                  onChange={(e) => setField("locality", e.target.value)}
+                  placeholder="Enter locality / neighborhood (e.g. Main Market, Station Road, Colony name)"
+                  aria-invalid={!!errors.locality}
+                />
+              ) : (
+                <Select
+                  value={form.locality}
+                  onValueChange={(v) => {
+                    if (v === "__CUSTOM_LOCALITY__") {
+                      setIsCustomLocality(true);
+                      setField("locality", "");
+                      return;
+                    }
+                    setField("locality", v);
+                  }}
+                  disabled={!form.city}
+                >
+                  <SelectTrigger id="prop-locality" className="w-full" aria-invalid={!!errors.locality}>
+                    <SelectValue placeholder={form.city ? "Select locality" : "Select a city first"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {(cityEntry?.localities ?? []).map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__CUSTOM_LOCALITY__" className="font-medium text-primary">
+                      + Enter another locality...
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  </SelectContent>
+                </Select>
+              )}
               <FieldError message={errors.locality} />
             </div>
 

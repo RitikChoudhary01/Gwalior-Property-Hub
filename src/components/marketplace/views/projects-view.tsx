@@ -18,7 +18,18 @@ import { EmptyState } from "../shared/section";
 const PAGE_SIZE = 9;
 const ANY = "__any__";
 
-const PROJECT_CITIES = ["Bengaluru", "Pune", "Hyderabad", "Noida"] as const;
+const PROJECT_CITIES = [
+  "Gwalior",
+  "Indore",
+  "Bhopal",
+  "Mumbai",
+  "Bengaluru",
+  "Pune",
+  "Hyderabad",
+  "Noida",
+  "Delhi",
+  "Gurugram",
+] as const;
 
 type LoadedProjects =
   | { key: string; ok: true; items: ProjectCardDTO[]; total: number; pagesLoaded: number }

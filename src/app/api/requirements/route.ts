@@ -61,7 +61,7 @@ const createSchema = z
     phone: z.string().trim().regex(/^[+\d][\d\s-]{7,14}$/, "Please enter a valid phone number"),
     email: z.string().trim().toLowerCase().email("Enter a valid email").optional().or(z.literal("")),
     purpose: z.enum(["BUY", "RENT"]).default("BUY"),
-    city: z.string().refine((c) => CITY_NAMES.includes(c), "Select a valid city"),
+    city: z.string().trim().min(2, "Select or enter a valid city").max(60),
     localities: z.string().trim().max(300).optional(),
     propertyType: z.string().trim().min(1).default("Any"),
     bhk: z.coerce.number().int().min(1).max(10).optional(),

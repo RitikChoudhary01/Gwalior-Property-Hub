@@ -248,6 +248,8 @@ export function RequirementForm({ onPosted, idPrefix = "req", className }: Props
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [consent, setConsent] = useState(true);
+  const [isCustomCity, setIsCustomCity] = useState(false);
+  const [customLocalityText, setCustomLocalityText] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<RequirementPostResult | null>(null);
@@ -332,8 +334,10 @@ export function RequirementForm({ onPosted, idPrefix = "req", className }: Props
           phone: phone.trim(),
           email: email.trim() || undefined,
           purpose,
-          city,
-          localities: selectedLocalities.length ? selectedLocalities.join(", ") : undefined,
+          city: city.trim(),
+          localities: selectedLocalities.length
+            ? selectedLocalities.join(", ")
+            : customLocalityText.trim() || undefined,
           propertyType,
           bhk: bhk ? Number(bhk) : undefined,
           budgetMin: budgetMin ? Number(budgetMin) : undefined,
@@ -432,19 +436,59 @@ export function RequirementForm({ onPosted, idPrefix = "req", className }: Props
       {/* City + property type */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor={id("city")}>City *</Label>
-          <Select value={city} onValueChange={onCityChange}>
-            <SelectTrigger id={id("city")} className="w-full">
-              <SelectValue placeholder="Select city" />
-            </SelectTrigger>
-            <SelectContent>
-              {CITIES.map((c) => (
-                <SelectItem key={c.city} value={c.city}>
-                  {c.city}
+          <div className="flex items-center justify-between">
+            <Label htmlFor={id("city")}>City *</Label>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !isCustomCity;
+                setIsCustomCity(next);
+                if (next) {
+                  setCity("");
+                  setSelectedLocalities([]);
+                }
+              }}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              {isCustomCity ? "Choose from list" : "+ Other city"}
+            </button>
+          </div>
+
+          {isCustomCity ? (
+            <Input
+              id={id("city")}
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Enter city (e.g. Morena, Shivpuri, Bhind, Datia)"
+            />
+          ) : (
+            <Select
+              value={city}
+              onValueChange={(c) => {
+                if (c === "__OTHER__") {
+                  setIsCustomCity(true);
+                  setCity("");
+                  setSelectedLocalities([]);
+                  return;
+                }
+                onCityChange(c);
+              }}
+            >
+              <SelectTrigger id={id("city")} className="w-full">
+                <SelectValue placeholder="Select city" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {CITIES.map((c) => (
+                  <SelectItem key={c.city} value={c.city}>
+                    {c.city} ({c.state})
+                  </SelectItem>
+                ))}
+                <SelectItem value="__OTHER__" className="font-medium text-primary">
+                  + Other city / Not in list
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={id("type")}>Property type</Label>
@@ -464,8 +508,18 @@ export function RequirementForm({ onPosted, idPrefix = "req", className }: Props
         </div>
       </div>
 
-      {/* Preferred localities (city-specific chips) */}
-      {cityLocalities.length > 0 && (
+      {/* Preferred localities */}
+      {isCustomCity ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={id("custom-locality")}>Preferred localities / Areas</Label>
+          <Input
+            id={id("custom-locality")}
+            value={customLocalityText}
+            onChange={(e) => setCustomLocalityText(e.target.value)}
+            placeholder="e.g. Near Bus Stand, Main Market, Civil Lines (optional)"
+          />
+        </div>
+      ) : cityLocalities.length > 0 ? (
         <div className="space-y-2">
           <div>
             <Label>Preferred localities</Label>
@@ -495,7 +549,7 @@ export function RequirementForm({ onPosted, idPrefix = "req", className }: Props
             })}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* BHK + budget range */}
       <div className="grid gap-3 sm:grid-cols-3">

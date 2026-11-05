@@ -268,8 +268,19 @@ export function ProjectForm({
   const [apiError, setApiError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [isCustomCity, setIsCustomCity] = useState<boolean>(() => {
+    if (!project?.city) return false;
+    return !CITIES.some((c) => c.city.toLowerCase() === project.city.toLowerCase());
+  });
+  const [isCustomLocality, setIsCustomLocality] = useState<boolean>(() => {
+    if (!project?.locality) return false;
+    const matched = CITIES.find((c) => c.city.toLowerCase() === (project.city || "").toLowerCase());
+    return !matched || !matched.localities.includes(project.locality);
+  });
+  const [customState, setCustomState] = useState(project?.state ?? "");
+
   const cityData = CITIES.find((c) => c.city === values.city);
-  const state = cityData?.state ?? "";
+  const state = isCustomCity ? customState : (cityData?.state ?? "");
   const uploading = images.some((i) => i.uploading);
 
   function set<K extends keyof ProjectFormValues>(key: K, value: ProjectFormValues[K]) {
@@ -449,52 +460,129 @@ export function ProjectForm({
             <legend className="mb-1 text-sm font-semibold text-foreground">Location</legend>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="project-city">City</Label>
-                <Select
-                  value={values.city}
-                  onValueChange={(v) => {
-                    set("city", v);
-                    setValues((prev) => ({ ...prev, city: v, locality: "" }));
-                  }}
-                >
-                  <SelectTrigger id="project-city" className="w-full" aria-invalid={!!errors.city}>
-                    <SelectValue placeholder="Select city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CITIES.map((c) => (
-                      <SelectItem key={c.city} value={c.city}>
-                        {c.city}
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="project-city">City</Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isCustomCity;
+                      setIsCustomCity(next);
+                      if (next) {
+                        setValues((prev) => ({ ...prev, city: "", locality: "" }));
+                      }
+                    }}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {isCustomCity ? "Choose from list" : "+ Other city"}
+                  </button>
+                </div>
+
+                {isCustomCity ? (
+                  <Input
+                    id="project-city"
+                    value={values.city}
+                    onChange={(e) => set("city", e.target.value)}
+                    placeholder="Enter city (e.g. Morena, Shivpuri, Bhind, Datia)"
+                    aria-invalid={!!errors.city}
+                  />
+                ) : (
+                  <Select
+                    value={values.city}
+                    onValueChange={(v) => {
+                      if (v === "__OTHER__") {
+                        setIsCustomCity(true);
+                        setValues((prev) => ({ ...prev, city: "", locality: "" }));
+                        return;
+                      }
+                      set("city", v);
+                      setValues((prev) => ({ ...prev, city: v, locality: "" }));
+                    }}
+                  >
+                    <SelectTrigger id="project-city" className="w-full" aria-invalid={!!errors.city}>
+                      <SelectValue placeholder="Select city" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {CITIES.map((c) => (
+                        <SelectItem key={c.city} value={c.city}>
+                          {c.city} ({c.state})
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__OTHER__" className="font-medium text-primary">
+                        + Other city / Not in list
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    </SelectContent>
+                  </Select>
+                )}
                 {errors.city ? <p className="text-xs text-destructive">{errors.city}</p> : null}
               </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="project-locality">Locality</Label>
-                <Select
-                  value={values.locality}
-                  onValueChange={(v) => set("locality", v)}
-                  disabled={!values.city}
-                >
-                  <SelectTrigger id="project-locality" className="w-full" aria-invalid={!!errors.locality}>
-                    <SelectValue placeholder={values.city ? "Select locality" : "Select a city first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(cityData?.localities ?? []).map((l) => (
-                      <SelectItem key={l} value={l}>
-                        {l}
+                <Label htmlFor="project-state">State</Label>
+                {isCustomCity ? (
+                  <Input
+                    id="project-state"
+                    value={customState}
+                    onChange={(e) => setCustomState(e.target.value)}
+                    placeholder="e.g. Madhya Pradesh, Uttar Pradesh"
+                  />
+                ) : (
+                  <Input id="project-state" readOnly value={state || "—"} placeholder="Auto-filled from city" />
+                )}
+              </div>
+
+              <div className="grid gap-2 sm:col-span-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="project-locality">Locality</Label>
+                  {!isCustomCity && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomLocality(!isCustomLocality)}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      {isCustomLocality ? "Choose from list" : "+ Type custom locality"}
+                    </button>
+                  )}
+                </div>
+
+                {isCustomCity || isCustomLocality ? (
+                  <Input
+                    id="project-locality"
+                    value={values.locality}
+                    onChange={(e) => set("locality", e.target.value)}
+                    placeholder="Enter locality / neighborhood (e.g. Main Road, Industrial Area)"
+                    aria-invalid={!!errors.locality}
+                  />
+                ) : (
+                  <Select
+                    value={values.locality}
+                    onValueChange={(v) => {
+                      if (v === "__CUSTOM_LOCALITY__") {
+                        setIsCustomLocality(true);
+                        set("locality", "");
+                        return;
+                      }
+                      set("locality", v);
+                    }}
+                    disabled={!values.city}
+                  >
+                    <SelectTrigger id="project-locality" className="w-full" aria-invalid={!!errors.locality}>
+                      <SelectValue placeholder={values.city ? "Select locality" : "Select a city first"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {(cityData?.localities ?? []).map((l) => (
+                        <SelectItem key={l} value={l}>
+                          {l}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__CUSTOM_LOCALITY__" className="font-medium text-primary">
+                        + Enter another locality...
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    </SelectContent>
+                  </Select>
+                )}
                 {errors.locality ? <p className="text-xs text-destructive">{errors.locality}</p> : null}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              State: <span className="font-medium text-foreground">{state || "—"}</span> (set from the
-              selected city)
-            </p>
           </fieldset>
 
           {/* Pricing & inventory */}
