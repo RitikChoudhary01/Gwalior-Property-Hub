@@ -12,31 +12,44 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    credentials: "same-origin",
-    headers: init?.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
-    ...init,
-  });
+export async function api<T = unknown>(path: string, init?: RequestInit, retries = 1): Promise<T> {
+  try {
+    const res = await fetch(path, {
+      credentials: "same-origin",
+      headers: init?.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
+      ...init,
+    });
 
-  const text = await res.text();
-  let data: unknown = undefined;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      // non-JSON response
+    const text = await res.text();
+    let data: unknown = undefined;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // non-JSON response
+      }
     }
-  }
 
-  if (!res.ok) {
-    const message =
-      (data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string"
-        ? (data as { error: string }).error
-        : `Request failed (${res.status})`);
-    throw new ApiError(message, res.status);
+    if (!res.ok) {
+      // Auto-retry once on 5xx serverless cold-start handshakes for GET queries
+      if (retries > 0 && (!init?.method || init.method.toUpperCase() === "GET") && res.status >= 500) {
+        await new Promise((r) => setTimeout(r, 800));
+        return api<T>(path, init, retries - 1);
+      }
+      const message =
+        (data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string"
+          ? (data as { error: string }).error
+          : `Request failed (${res.status})`);
+      throw new ApiError(message, res.status);
+    }
+    return data as T;
+  } catch (err) {
+    if (retries > 0 && (!init?.method || init.method.toUpperCase() === "GET") && !(err instanceof ApiError)) {
+      await new Promise((r) => setTimeout(r, 800));
+      return api<T>(path, init, retries - 1);
+    }
+    throw err;
   }
-  return data as T;
 }
 
 /** Uploads a file with progress reporting. Returns the hosted URL. */
