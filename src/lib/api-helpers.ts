@@ -11,8 +11,20 @@ import { AuthError } from "@/lib/auth";
 // or proxies serve them from cache, or a stale 401 could persist after login.
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" } as const;
 
+// Public read-only responses (unauthenticated listings, projects, insights)
+// are cached at the CDN edge for 60 s and served stale for up to 2 min
+// while revalidating — dramatically cuts cold-start latency for Indian users.
+const PUBLIC_CACHE = {
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+} as const;
+
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json(data as object, { status, headers: NO_STORE });
+}
+
+/** Use for public, unauthenticated GET responses that are safe to CDN-cache. */
+export function okPublic<T>(data: T) {
+  return NextResponse.json(data as object, { status: 200, headers: PUBLIC_CACHE });
 }
 
 export function fail(message: string, status = 400, extra?: Record<string, unknown>) {

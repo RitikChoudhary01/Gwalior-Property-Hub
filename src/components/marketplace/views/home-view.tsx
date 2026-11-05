@@ -61,6 +61,15 @@ interface LoadState<T> {
   data: T | null;
 }
 
+// Combined home bundle type
+interface HomeBundle {
+  featured: Paginated<PropertyCardDTO>;
+  recent: Paginated<PropertyCardDTO>;
+  projects: Paginated<ProjectCardDTO>;
+  insights: InsightsResponseDTO;
+  cityCounts: Record<string, number>;
+}
+
 export function HomeView() {
   const navigate = useAppStore((s) => s.navigate);
 
@@ -73,30 +82,39 @@ export function HomeView() {
   useEffect(() => {
     let active = true;
 
-    api<Paginated<PropertyCardDTO>>("/api/properties?featured=1&pageSize=6")
-      .then((res) => active && setFeatured({ loading: false, data: res.data }))
-      .catch(() => active && setFeatured({ loading: false, data: null }));
-
-    api<Paginated<PropertyCardDTO>>("/api/properties?sort=recent&pageSize=6")
-      .then((res) => active && setRecent({ loading: false, data: res.data }))
-      .catch(() => active && setRecent({ loading: false, data: null }));
-
-    api<Paginated<ProjectCardDTO>>("/api/projects?pageSize=3")
-      .then((res) => active && setProjects({ loading: false, data: res.data }))
-      .catch(() => active && setProjects({ loading: false, data: null }));
-
-    // Live locality price intelligence (market pulse section)
-    api<InsightsResponseDTO>("/api/insights?limit=6")
-      .then((res) => active && setInsights({ loading: false, data: res }))
-      .catch(() => active && setInsights({ loading: false, data: null }));
-
-    // Aggregated per-city listing counts (single query)
-    api<{ counts: Record<string, number> }>("/api/properties?cityCounts=1")
-      .then((res) => {
-        if (active && res?.counts) setCityCounts(res.counts);
+    // Single combined API call — replaces 5 separate round-trips.
+    // Falls back to individual calls if /api/home fails.
+    api<HomeBundle>("/api/home")
+      .then((bundle) => {
+        if (!active) return;
+        setFeatured({ loading: false, data: bundle.featured.data });
+        setRecent({ loading: false, data: bundle.recent.data });
+        setProjects({ loading: false, data: bundle.projects.data });
+        setInsights({ loading: false, data: bundle.insights });
+        if (bundle.cityCounts) setCityCounts(bundle.cityCounts);
       })
       .catch(() => {
-        if (active) setCityCounts({});
+        if (!active) return;
+        // Fallback: try individual calls
+        api<Paginated<PropertyCardDTO>>("/api/properties?featured=1&pageSize=6")
+          .then((res) => active && setFeatured({ loading: false, data: res.data }))
+          .catch(() => active && setFeatured({ loading: false, data: null }));
+
+        api<Paginated<PropertyCardDTO>>("/api/properties?sort=recent&pageSize=6")
+          .then((res) => active && setRecent({ loading: false, data: res.data }))
+          .catch(() => active && setRecent({ loading: false, data: null }));
+
+        api<Paginated<ProjectCardDTO>>("/api/projects?pageSize=3")
+          .then((res) => active && setProjects({ loading: false, data: res.data }))
+          .catch(() => active && setProjects({ loading: false, data: null }));
+
+        api<InsightsResponseDTO>("/api/insights?limit=6")
+          .then((res) => active && setInsights({ loading: false, data: res }))
+          .catch(() => active && setInsights({ loading: false, data: null }));
+
+        api<{ counts: Record<string, number> }>("/api/properties?cityCounts=1")
+          .then((res) => { if (active && res?.counts) setCityCounts(res.counts); })
+          .catch(() => { if (active) setCityCounts({}); });
       });
 
     return () => {
