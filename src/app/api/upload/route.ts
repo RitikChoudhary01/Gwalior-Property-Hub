@@ -32,12 +32,12 @@ const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/$/, "");
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || "uploads";
 
-// Supabase service keys are JWTs starting with "ey". If placeholder or empty, do not attempt remote call.
+// Supabase keys can be JWT service keys ("ey...") or new API secret keys ("sb_secret_...").
 const isRealSupabaseKey =
   Boolean(SUPABASE_KEY) &&
   !SUPABASE_KEY!.includes("PASTE_YOUR") &&
   !SUPABASE_KEY!.includes("your-service-role-key") &&
-  SUPABASE_KEY!.startsWith("ey");
+  (SUPABASE_KEY!.startsWith("ey") || SUPABASE_KEY!.startsWith("sb_") || SUPABASE_KEY!.length > 20);
 
 async function supabaseUpload(bytes: Buffer, contentType: string, name: string): Promise<string> {
   const headers = {
